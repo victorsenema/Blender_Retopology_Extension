@@ -1,26 +1,21 @@
-anchors = []
-
 class Anchor:
-    def __init__(self, empty_obj, mesh_obj, vertex_index, weights):
-        self.empty = empty_obj
-        self.mesh = mesh_obj
-        self.vertex_index = vertex_index
+    # Anchor the Critical Point (a object) with the vetex that it over in the template
+    # Wen the anchor moves the Vertex moves
 
-        self.initial_empty_pos = empty_obj.location.copy()
-        self.initial_vertex_pos = (mesh_obj.data.vertices[vertex_index].co.copy())
+    def __init__(self, critical_point, vertex_main_anchored):
+        self.critical_point = critical_point
+        self.vertex = vertex_main_anchored
+        self.vertex_weights = []
 
-        self.weights = weights
+        self.initial_empty_position = (critical_point.empty.location.copy())
+        self.initial_vertex_position = (vertex_main_anchored.co.copy())
 
-        self.base_positions = {}
-        for v in mesh_obj.data.vertices:
-            self.base_positions[v.index] = v.co.copy()
+    #update the base vertex position when the empty chance position
+    def update_position(self):
+        offset = (self.critical_point.empty.location - self.initial_empty_position)
 
-    def update(self):
-
-        offset = (self.empty.location - self.initial_empty_pos)
-
-        for vertex_index, weight in self.weights.items():
-
-            vertex = self.mesh.data.vertices[vertex_index]
-
-            vertex.co = (self.base_positions[vertex_index] + offset * weight)
+        for vertex_weight in self.vertex_weights:
+            vertex_weight.vertex.co = (
+                vertex_weight.initial_vertex_position
+                + offset * vertex_weight.weight
+            )
