@@ -12,10 +12,8 @@ class Anchor:
 
     #update the base vertex position when the empty chance position
     def update_position(self):
+
         offset = (self.critical_point.empty.location - self.initial_empty_position)
 
         for vertex_weight in self.vertex_weights:
-            vertex_weight.vertex.co = (
-                vertex_weight.initial_vertex_position
-                + offset * vertex_weight.weight
-            )
+            vertex_weight.vertex.co = (vertex_weight.initial_vertex_position + offset * vertex_weight.weight)

@@ -1,12 +1,29 @@
 from pathlib import Path
 import math
 from .critical_point import CriticalPoint
-import bpy
+from .graph_weights import multi_source_BFS_weight_assign
+from .anchor import Anchor
 
+
+#teste
+from .session import anchors
+
+import bpy
+import bmesh
 def get_template_asset():
     addon_dir = Path(__file__).parent.parent
     template_path = addon_dir / "assets" / "Template_02.fbx"
-    return template_path
+
+    bpy.ops.import_scene.fbx(filepath=str(template_path))
+    template_asset = bpy.context.selected_objects
+
+    return template_asset
+
+def get_template_mesh(template_asset):
+    # Get the mesh object from the template
+    for obj in template_asset:
+        if obj.type == 'MESH':
+            return obj
 
 def find_nearest_vertex(template_mesh, point):
     # Find the nearest vertex to a point (the point its the representation of the position of the critical point)
@@ -36,24 +53,18 @@ def create_critical_points(template_asset):
     return critical_points
 
 
-def create_anchors(template_asset, critical_points):
+def create_anchors(template_mesh, critical_points):
     # Create the Anchors
     anchors = []
     for critical_point in critical_points:
-        vertex = find_nearest_vertex(template_asset,critical_point.empty.location)
+        vertex = find_nearest_vertex(template_mesh,critical_point.empty.location)
         anchors.append(Anchor(critical_point,vertex))
     return anchors
 
 
 def assign_weights(template_mesh, anchors):
     # Run the Multi-Source BFS and assign weights
-    pass
-
-
-def instantiate_template(template_asset):
-    # Put the template in the scene
-    pass
-
+    multi_source_BFS_weight_assign(template_mesh,anchors)
 
 def load_template():
     # Pipeline:
@@ -63,4 +74,17 @@ def load_template():
         # Assign weights
         # Instantiate template
         # Return anchors
-    pass
+
+    # Asset (All objects)
+    template_asset = get_template_asset()
+    # Mesh 
+    template_mesh = get_template_mesh(template_asset)
+    # Critical Points
+    critical_points = create_critical_points(template_asset)
+    # Anchors
+    anchors.clear()
+    anchors.extend(create_anchors(template_mesh,critical_points))
+    # Weights
+    assign_weights(template_mesh,anchors)
+
+    return anchors

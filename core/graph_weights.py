@@ -1,5 +1,4 @@
-import bpy
-import math
+import bmesh
 
 class VertexWeight:
     # This class will be used to assign the weight a vertex have to an specific anchor
@@ -22,6 +21,11 @@ def multi_source_BFS_weight_assign(template_mesh, anchors, decay=0.5):
         # A vertex can only belong to one anchor.
         # Already assigned vertices are skipped.
         # Continue until every vertex has been assigned.
+
+    bm = bmesh.new() # Need the bmesh beacuse of current_vertex.link_edges
+    bm.from_mesh(template_mesh.data)
+    bm.verts.ensure_lookup_table()
+
     for anchor in anchors:
         anchor.vertex_weights.clear()
 
@@ -30,9 +34,10 @@ def multi_source_BFS_weight_assign(template_mesh, anchors, decay=0.5):
 
     # Initialize frontier with anchor vertices
     for anchor in anchors:
-        frontier.append((anchor, anchor.vertex, 0))
-        visited.add(anchor.vertex.index)
-
+        bm_vertex = bm.verts[anchor.vertex.index]
+        frontier.append((anchor, bm_vertex, 0))
+        visited.add(bm_vertex.index)
+    
     while frontier:
 
         next_frontier = []
@@ -40,7 +45,12 @@ def multi_source_BFS_weight_assign(template_mesh, anchors, decay=0.5):
         for anchor, current_vertex, distance in frontier:
 
             weight = calculate_weight(distance, decay)
-            anchor.vertex_weights.append(VertexWeight(current_vertex,weight))
+
+            mesh_vertex = template_mesh.data.vertices[current_vertex.index]
+
+            anchor.vertex_weights.append(
+                VertexWeight(mesh_vertex, weight)
+            )
 
             for edge in current_vertex.link_edges:
 
@@ -49,5 +59,9 @@ def multi_source_BFS_weight_assign(template_mesh, anchors, decay=0.5):
                 if neighbor.index not in visited:
                     visited.add(neighbor.index)
 
-                    next_frontier.append((anchor, neighbor, distance + 1))
+                    next_frontier.append(
+                        (anchor, neighbor, distance + 1)
+                    )
+
         frontier = next_frontier
+    bm.free()
