@@ -9,7 +9,7 @@ class VertexWeight:
         self.weight = weight
         self.initial_vertex_position = vertex.co.copy()
 
-def calculate_weight(distance, decay=0.5):
+def calculate_weight(distance, decay=0.05):
     #calculate the weight of the vertex (not the vertex_main_anchored, but the other ones)
     return decay ** distance
 
