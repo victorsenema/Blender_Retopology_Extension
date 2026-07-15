@@ -1,46 +1,40 @@
 import bpy
 
-#panel
-from .ui.panel import RETOPO_PT_panel
+from .operators.OPERATOR_create_critical_points import OPERATOR_create_critical_points
+from .operators.OPERATOR_apply_mesh import OPERATOR_apply_mesh
 
-#operators
-from .operators.OPERATOR_load_template import OPERATOR_load_template
+from .ui.panel import RETOPOLOGY_PT_panel
 
-#handlers
-from .handlers.HANDLER_anchor import anchor_handler
 
 bl_info = {
-    "name": "Retopo Template",
-    "author": "Gava",
-    "version": (0, 0, 1),
+    "name": "Retopology",
+    "author": "Victor Gava",
+    "version": (1, 0, 0),
     "blender": (4, 0, 0),
+    "location": "View3D > Sidebar > Retopology",
+    "description": "Semi-automatic facial retopology.",
     "category": "Mesh",
 }
 
+
 classes = (
-    RETOPO_PT_panel,
-    OPERATOR_load_template,
+    OPERATOR_create_critical_points,
+    OPERATOR_apply_mesh,
+    RETOPOLOGY_PT_panel,
 )
+
 
 def register():
 
-    #classes
     for cls in classes:
         bpy.utils.register_class(cls)
 
-    #handlers
-    if anchor_handler not in bpy.app.handlers.depsgraph_update_post:
-        bpy.app.handlers.depsgraph_update_post.append(
-            anchor_handler
-        )
 
 def unregister():
-    #classes
-    if anchor_handler in bpy.app.handlers.depsgraph_update_post:
-        bpy.app.handlers.depsgraph_update_post.remove(
-            anchor_handler
-        )
-        
-    #handlers
+
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
+
+
+if __name__ == "__main__":
+    register()
