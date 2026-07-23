@@ -1,6 +1,8 @@
+import bpy
 from mathutils import Vector, Matrix
 from .rotation import Rotation
 from .scale import Scale
+from .deformation.vertex_groups import VertexGroups
 
 class Alignment:
 
@@ -12,6 +14,7 @@ class Alignment:
         self.user_points = {}
 
     def execute(self):
+        bpy.context.view_layer.update()
 
         self.collect_template_points()
         self.collect_user_points()
@@ -44,11 +47,22 @@ class Alignment:
 
         self.template_points.clear()
 
-        for empty in self.session.template.critical_points:
+        print("\n========== TEMPLATE POINTS ==========")
 
-            self.template_points[
-                self.normalize_name(empty.name)
-            ] = empty
+        for critical_point in self.session.template.critical_points:
+
+            empty = critical_point.empty
+
+            key = self.normalize_name(critical_point.name)
+
+            self.template_points[key] = empty
+
+            print(
+                key,
+                id(empty),
+                empty.location,
+                empty.matrix_world.translation
+            )
 
     # --------------------------------------------------
 
@@ -163,6 +177,8 @@ class Alignment:
                 scale_transform @ obj.matrix_world
             )
 
+        bpy.context.view_layer.update()
+
         #
         # ROTATION
         #
@@ -184,6 +200,8 @@ class Alignment:
                 rotation_transform @ obj.matrix_world
             )
 
+        bpy.context.view_layer.update()
+
         #
         # TRANSLATION
         #
@@ -197,6 +215,15 @@ class Alignment:
         for obj in self.session.template.objects:
 
             obj.location += translation
+
+        bpy.context.view_layer.update()
+
+        print("\n========== ALIGNMENT CHECK ==========")
+        print("User center:", user_center)
+        print(
+            "Template center (after alignment):",
+            self.calculate_center(self.template_points)
+        )
 
     def calculate_scale(self):
 

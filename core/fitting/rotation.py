@@ -37,7 +37,7 @@ class Rotation:
     def calculate_matrix(self):
 
         template_basis = self.build_basis(
-            -self.template_horizontal,
+            self.template_horizontal,
             self.template_vertical
         )
 

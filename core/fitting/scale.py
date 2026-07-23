@@ -54,10 +54,25 @@ class Scale:
         scale_z = user_height / template_height
 
         #
-        # Depth
+        # Depth -- NoseTip é o ponto mais frontal do rosto;
+        # o ponto médio entre JawLeft/JawRight aproxima o
+        # "plano dos ouvidos". A distância entre os dois dá
+        # uma medida de profundidade da cabeça, do mesmo jeito
+        # que largura usa JawLeft/JawRight e altura usa
+        # ForeheadTop/Chin. Antes disso, scale_y ficava fixo
+        # em 1.0 -- por isso o perfil saía achatado, sem o
+        # volume de nariz/queixo do rosto alvo.
         #
 
-        scale_y = 1.0
+        template_depth = self.calculate_depth(
+            self.template_points
+        )
+
+        user_depth = self.calculate_depth(
+            self.user_points
+        )
+
+        scale_y = user_depth / template_depth
 
         print("\n========== SCALE ==========")
         print(f"Scale X : {scale_x:.4f}")
@@ -71,3 +86,16 @@ class Scale:
         scale[2][2] = scale_z
 
         return scale
+
+    # -------------------------------------------------------------
+
+    def calculate_depth(self, points):
+
+        jaw_left = points["JawLeft"].matrix_world.translation
+        jaw_right = points["JawRight"].matrix_world.translation
+
+        ear_plane_center = (jaw_left + jaw_right) / 2
+
+        nose_tip = points["NoseTip"].matrix_world.translation
+
+        return (nose_tip - ear_plane_center).length

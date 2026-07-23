@@ -1,30 +1,35 @@
 import bpy
 import bmesh
-from mathutils.bvhtree import BVHTree
-
-from ... import session
 
 
 class SurfaceProjection:
 
-    def __init__(self):
-        self.template = session.template_mesh
+    #
+    # Cola o template sobre a superfície esculpida (target_mesh)
+    # usando o modifier Shrinkwrap nativo do Blender, no modo
+    # PROJECT: cada vértice é projetado ao longo da própria
+    # normal (não pelo ponto mais próximo em linha reta).
+    #
+    # Por que não nearest-point puro (versão antiga, via BVH):
+    # nearest-point ignora direção -- um vértice na bochecha
+    # esquerda pode grudar num pedaço de superfície da bochecha
+    # direita, ou dentro da boca, sempre que essas partes
+    # estiverem mais perto em distância reta do que a pele
+    # "certa" na frente dele. Projetar ao longo da normal, com
+    # um limite de distância de busca, evita isso -- é
+    # exatamente o que ferramentas de wrap profissionais fazem.
+    #
+
+    def __init__(self, session):
+
+        self.session = session
+
+        self.template = session.template.mesh
         self.target = session.target_mesh
-        self.bvh = None
 
-    def build_bvh(self):
-        # Build a BVH tree from the target mesh
-
-        bm = bmesh.new()
-        bm.from_mesh(self.target.data)
-        bm.transform(self.target.matrix_world)
-
-        self.bvh = BVHTree.FromBMesh(bm)
-
-        bm.free()
+    # -------------------------------------------------------------
 
     def project(self):
-        # Project every template vertex onto the target surface
 
         if self.template is None:
             return
@@ -32,19 +37,83 @@ class SurfaceProjection:
         if self.target is None:
             return
 
-        self.build_bvh()
+        modifier = self.template.modifiers.new(
+            name="RetopoSurfaceProjection",
+            type='SHRINKWRAP'
+        )
 
-        mesh = self.template.data
+        modifier.target = self.target
+        modifier.wrap_method = 'PROJECT'
 
-        for vertex in mesh.vertices:
+        #
+        # Projeta pra dentro e pra fora ao longo da normal --
+        # depois do fit (Structure + Refinement), o vértice pode
+        # estar tanto "afundado" quanto "saltando" em relação à
+        # superfície real, então precisamos buscar nas duas
+        # direções.
+        #
 
-            world_position = self.template.matrix_world @ vertex.co
+        modifier.use_negative_direction = True
+        modifier.use_positive_direction = True
 
-            location, normal, index, distance = self.bvh.find_nearest(world_position)
+        #
+        # Limite de distância de busca, proporcional ao tamanho
+        # da própria cabeça (evita colar num pedaço de superfície
+        # muito distante / do lado errado, tipo o caso da bochecha
+        # citado acima). 15% da maior dimensão é um ponto de
+        # partida razoável -- ajustável se precisar.
+        #
 
-            if location is None:
-                continue
+        head_size = max(self.template.dimensions)
 
-            vertex.co = self.template.matrix_world.inverted() @ location
+        modifier.project_limit = head_size * 0.15
 
-        mesh.update()
+        project_limit = modifier.project_limit
+
+        #
+        # Avalia o modifier (via depsgraph) e copia o resultado
+        # de volta pro mesh.data ORIGINAL via bmesh -- assim
+        # preservamos UVs, materiais e o nome do datablock, em
+        # vez de trocar mesh.data inteiro por um novo.
+        #
+
+        depsgraph = bpy.context.evaluated_depsgraph_get()
+
+        evaluated_obj = self.template.evaluated_get(depsgraph)
+
+        evaluated_mesh = evaluated_obj.to_mesh()
+
+        bm = bmesh.new()
+
+        bm.from_mesh(self.template.data)
+
+        bm.verts.ensure_lookup_table()
+
+        moved_vertices = 0
+
+        for index, evaluated_vertex in enumerate(evaluated_mesh.vertices):
+
+            #
+            # Shrinkwrap é um modifier "deform-only": não muda
+            # topologia nem contagem de vértices, então o índice
+            # bate 1-pra-1 com o mesh original.
+            #
+
+            bm.verts[index].co = evaluated_vertex.co.copy()
+
+            moved_vertices += 1
+
+        evaluated_obj.to_mesh_clear()
+
+        self.template.modifiers.remove(modifier)
+
+        bm.to_mesh(self.template.data)
+
+        self.template.data.update()
+
+        bm.free()
+
+        print(
+            f"[SurfaceProjection] {moved_vertices} vertices "
+            f"projetados (project_limit={project_limit:.4f})"
+        )

@@ -8,4 +8,10 @@ class Template:
 
         self.critical_points = []
 
+        self.refinement_points = []
+
         self.control_points = []
+
+        self.vertex_groups = {}
+
+        self.weights = {}

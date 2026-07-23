@@ -1,7 +1,10 @@
 import bpy
 
 from .operators.OPERATOR_create_critical_points import OPERATOR_create_critical_points
+from .operators.OPERATOR_create_refinement_points import OPERATOR_create_refinement_points
 from .operators.OPERATOR_apply_mesh import OPERATOR_apply_mesh
+from .operators.OPERATOR_apply_refinement import OPERATOR_apply_refinement
+from .operators.OPERATOR_apply_projection import OPERATOR_apply_projection
 
 from .ui.panel import RETOPOLOGY_PT_panel
 
@@ -19,7 +22,10 @@ bl_info = {
 
 classes = (
     OPERATOR_create_critical_points,
+    OPERATOR_create_refinement_points,
     OPERATOR_apply_mesh,
+    OPERATOR_apply_refinement,
+    OPERATOR_apply_projection,
     RETOPOLOGY_PT_panel,
 )
 

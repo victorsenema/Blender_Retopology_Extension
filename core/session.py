@@ -3,6 +3,8 @@
 current_critical_point = 0
 critical_points = []
 
+refinement_points = []
+
 target_mesh = None
 template = None
 
