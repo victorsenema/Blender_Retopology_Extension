@@ -29,27 +29,3 @@ class RETOPOLOGY_PT_panel(bpy.types.Panel):
             text="Apply Mesh",
             icon='MESH_GRID'
         )
-
-        layout.separator()
-
-        layout.label(text="Refinement")
-
-        layout.operator(
-            "retopo.create_refinement_points",
-            text="Place Refinement Points",
-            icon='EMPTY_AXIS'
-        )
-
-        layout.operator(
-            "retopo.apply_refinement",
-            text="Apply Refinement",
-            icon='MOD_SMOOTH'
-        )
-
-        layout.separator()
-
-        layout.operator(
-            "retopo.apply_projection",
-            text="Apply Projection",
-            icon='SNAP_ON'
-        )

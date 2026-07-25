@@ -1,7 +1,0 @@
-Handlers are functions that Blender executes automatically when a specific event occurs.
-
-Conceptually:
-
-When this happens
-↓
-Execute this function

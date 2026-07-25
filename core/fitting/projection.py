@@ -47,10 +47,9 @@ class SurfaceProjection:
 
         #
         # Projeta pra dentro e pra fora ao longo da normal --
-        # depois do fit (Structure + Refinement), o vértice pode
-        # estar tanto "afundado" quanto "saltando" em relação à
-        # superfície real, então precisamos buscar nas duas
-        # direções.
+        # depois do warp TPS, o vértice pode estar tanto
+        # "afundado" quanto "saltando" em relação à superfície
+        # real, então precisamos buscar nas duas direções.
         #
 
         modifier.use_negative_direction = True
@@ -60,13 +59,12 @@ class SurfaceProjection:
         # Limite de distância de busca, proporcional ao tamanho
         # da própria cabeça (evita colar num pedaço de superfície
         # muito distante / do lado errado, tipo o caso da bochecha
-        # citado acima). 15% da maior dimensão é um ponto de
-        # partida razoável -- ajustável se precisar.
+        # citado acima).
         #
 
         head_size = max(self.template.dimensions)
 
-        modifier.project_limit = head_size * 0.15
+        modifier.project_limit = head_size * 0.08
 
         project_limit = modifier.project_limit
 

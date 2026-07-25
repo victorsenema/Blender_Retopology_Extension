@@ -1,3 +1,26 @@
+def normalize_point_name(name):
+
+    #
+    # Tira o prefixo usado nos objetos da Template
+    # ("CriticalPoint_") e qualquer sufixo ".001"/".002" que o
+    # Blender adiciona quando dois objetos colidem de nome --
+    # assim o nome bate com o Empty equivalente criado pelo
+    # usuário no Landmarking, não importa de qual lado (template
+    # ou usuário) ele vem.
+    #
+    # Usado em alignment.py (pra casar template x usuário na
+    # hora de calcular escala/rotação) e em structure_warp.py
+    # (pra casar template x usuário na hora do warp TPS).
+    #
+
+    name = name.replace("CriticalPoint_", "")
+
+    if "." in name:
+        name = name.split(".")[0]
+
+    return name
+
+
 def is_valid(obj):
 
     #

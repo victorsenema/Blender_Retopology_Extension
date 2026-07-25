@@ -2,7 +2,7 @@ import bpy
 from mathutils import Vector, Matrix
 from .rotation import Rotation
 from .scale import Scale
-from .deformation.vertex_groups import VertexGroups
+from ..blender_utils import normalize_point_name
 
 class Alignment:
 
@@ -32,17 +32,6 @@ class Alignment:
 
     # --------------------------------------------------
 
-    def normalize_name(self, name):
-
-        name = name.replace("CriticalPoint_", "")
-
-        if "." in name:
-            name = name.split(".")[0]
-
-        return name
-
-    # --------------------------------------------------
-
     def collect_template_points(self):
 
         self.template_points.clear()
@@ -53,7 +42,7 @@ class Alignment:
 
             empty = critical_point.empty
 
-            key = self.normalize_name(critical_point.name)
+            key = normalize_point_name(critical_point.name)
 
             self.template_points[key] = empty
 
@@ -73,7 +62,7 @@ class Alignment:
         for point in self.session.critical_points:
 
             self.user_points[
-                self.normalize_name(point.name)
+                normalize_point_name(point.name)
             ] = point.empty
 
     # --------------------------------------------------
@@ -104,13 +93,46 @@ class Alignment:
 
     def get_horizontal_axis(self, points):
 
-        left = points["LeftEye"].matrix_world.translation
-        right = points["RightEye"].matrix_world.translation
+        #
+        # Não existe mais um único ponto "LeftEye"/"RightEye"
+        # no template novo (viraram vários pontos por olho:
+        # _Top, _Bottom, _Inner_Side, _Outer_Side) -- usa a
+        # média de todos os pontos de cada olho como o "centro"
+        # daquele olho pro eixo horizontal.
+        #
+
+        left = self.average_position(points, "LeftEye")
+        right = self.average_position(points, "RightEye")
 
         axis = right - left
         axis.normalize()
 
         return axis
+
+    # --------------------------------------------------
+
+    def average_position(self, points, name_prefix):
+
+        matches = [
+            point.matrix_world.translation
+            for name, point in points.items()
+            if name.startswith(name_prefix)
+        ]
+
+        if not matches:
+            raise RuntimeError(
+                f"Nenhum critical point com prefixo "
+                f"'{name_prefix}' encontrado."
+            )
+
+        center = Vector((0.0, 0.0, 0.0))
+
+        for position in matches:
+            center += position
+
+        center /= len(matches)
+
+        return center
 
     # --------------------------------------------------
 
