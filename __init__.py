@@ -2,6 +2,7 @@ import bpy
 
 from .operators.OPERATOR_create_critical_points import OPERATOR_create_critical_points
 from .operators.OPERATOR_apply_mesh import OPERATOR_apply_mesh
+from .operators.OPERATOR_apply_modifiers import OPERATOR_apply_modifiers
 
 from .ui.panel import RETOPOLOGY_PT_panel
 
@@ -20,6 +21,7 @@ bl_info = {
 classes = (
     OPERATOR_create_critical_points,
     OPERATOR_apply_mesh,
+    OPERATOR_apply_modifiers,
     RETOPOLOGY_PT_panel,
 )
 
@@ -29,8 +31,26 @@ def register():
     for cls in classes:
         bpy.utils.register_class(cls)
 
+    #
+    # Scene.retopo_target: dropper (PointerProperty nativo do
+    # Blender, com o ícone de conta-gotas) pra escolher a malha
+    # esculpida onde o template vai ser colado via Shrinkwrap.
+    # Ver operators/OPERATOR_apply_mesh.py.
+    #
+
+    bpy.types.Scene.retopo_target = bpy.props.PointerProperty(
+        name="Target Mesh",
+        description=(
+            "Malha esculpida onde o template será colado (Shrinkwrap)"
+        ),
+        type=bpy.types.Object,
+        poll=lambda self, obj: obj.type == 'MESH',
+    )
+
 
 def unregister():
+
+    del bpy.types.Scene.retopo_target
 
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)

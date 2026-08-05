@@ -12,6 +12,23 @@ class OPERATOR_apply_mesh(bpy.types.Operator):
 
     def execute(self, context):
 
+        #
+        # A malha alvo é a que o usuário escolheu no dropper do
+        # painel (Scene.retopo_target) -- não é mais detectada
+        # por ray cast durante o Landmarking.
+        #
+
+        if context.scene.retopo_target is None:
+
+            self.report(
+                {'ERROR'},
+                "Selecione a malha alvo (Target Mesh) no painel antes."
+            )
+
+            return {'CANCELLED'}
+
+        session.target_mesh = context.scene.retopo_target
+
         fitting = Fitting(session)
         fitting.execute()
 

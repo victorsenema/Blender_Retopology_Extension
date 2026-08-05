@@ -12,6 +12,16 @@ class RETOPOLOGY_PT_panel(bpy.types.Panel):
 
         layout = self.layout
 
+        layout.label(text="Target")
+
+        layout.prop(
+            context.scene,
+            "retopo_target",
+            text=""
+        )
+
+        layout.separator()
+
         layout.label(text="Landmarking")
 
         layout.operator(
@@ -28,4 +38,10 @@ class RETOPOLOGY_PT_panel(bpy.types.Panel):
             "retopo.apply_mesh",
             text="Apply Mesh",
             icon='MESH_GRID'
+        )
+
+        layout.operator(
+            "retopo.apply_modifiers",
+            text="Apply Modifiers",
+            icon='CHECKMARK'
         )

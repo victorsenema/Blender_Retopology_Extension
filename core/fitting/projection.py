@@ -10,15 +10,22 @@ class SurfaceProjection:
     # PROJECT: cada vértice é projetado ao longo da própria
     # normal (não pelo ponto mais próximo em linha reta).
     #
-    # Por que não nearest-point puro (versão antiga, via BVH):
-    # nearest-point ignora direção -- um vértice na bochecha
-    # esquerda pode grudar num pedaço de superfície da bochecha
-    # direita, ou dentro da boca, sempre que essas partes
-    # estiverem mais perto em distância reta do que a pele
-    # "certa" na frente dele. Projetar ao longo da normal, com
-    # um limite de distância de busca, evita isso -- é
-    # exatamente o que ferramentas de wrap profissionais fazem.
+    # Por que não nearest-point puro: nearest-point ignora
+    # direção -- um vértice na bochecha esquerda pode grudar num
+    # pedaço de superfície da bochecha direita, ou dentro da
+    # boca, sempre que essas partes estiverem mais perto em
+    # distância reta do que a pele "certa" na frente dele.
+    # Projetar ao longo da normal, com um limite de distância de
+    # busca, evita isso.
     #
+    # O modifier fica só ADICIONADO/configurado (add_modifier),
+    # sem ser aplicado -- assim o resultado é sempre uma preview
+    # ao vivo, editável, e o usuário decide quando finalizar
+    # (botão "Apply Modifiers", ver apply_modifier() e
+    # operators/OPERATOR_apply_modifiers.py).
+    #
+
+    MODIFIER_NAME = "RetopoSurfaceProjection"
 
     def __init__(self, session):
 
@@ -29,16 +36,27 @@ class SurfaceProjection:
 
     # -------------------------------------------------------------
 
-    def project(self):
+    def add_modifier(self):
 
         if self.template is None:
-            return
+            return None
 
         if self.target is None:
-            return
+            return None
+
+        #
+        # Roda de novo em cima de um resultado anterior (ex.:
+        # "Apply Mesh" clicado duas vezes) não deve empilhar
+        # modifiers -- substitui o anterior.
+        #
+
+        existing = self.template.modifiers.get(self.MODIFIER_NAME)
+
+        if existing is not None:
+            self.template.modifiers.remove(existing)
 
         modifier = self.template.modifiers.new(
-            name="RetopoSurfaceProjection",
+            name=self.MODIFIER_NAME,
             type='SHRINKWRAP'
         )
 
@@ -66,24 +84,45 @@ class SurfaceProjection:
 
         modifier.project_limit = head_size * 0.08
 
-        project_limit = modifier.project_limit
+        print(
+            f"[SurfaceProjection] modifier Shrinkwrap adicionado "
+            f"(project_limit={modifier.project_limit:.4f}) -- "
+            f"ainda NÃO aplicado, use 'Apply Modifiers' pra finalizar."
+        )
+
+        return modifier
+
+    # -------------------------------------------------------------
+
+    @staticmethod
+    def apply_modifier(mesh_obj, modifier_name=MODIFIER_NAME):
 
         #
-        # Avalia o modifier (via depsgraph) e copia o resultado
-        # de volta pro mesh.data ORIGINAL via bmesh -- assim
-        # preservamos UVs, materiais e o nome do datablock, em
-        # vez de trocar mesh.data inteiro por um novo.
+        # Finaliza o modifier: avalia via depsgraph e copia o
+        # resultado de volta pro mesh.data ORIGINAL via bmesh --
+        # assim preservamos UVs, materiais e o nome do
+        # datablock, em vez de trocar mesh.data inteiro por um
+        # novo. Depois disso o Shrinkwrap deixa de existir como
+        # modifier (virou geometria de verdade).
         #
+
+        if mesh_obj is None:
+            return False
+
+        modifier = mesh_obj.modifiers.get(modifier_name)
+
+        if modifier is None:
+            return False
 
         depsgraph = bpy.context.evaluated_depsgraph_get()
 
-        evaluated_obj = self.template.evaluated_get(depsgraph)
+        evaluated_obj = mesh_obj.evaluated_get(depsgraph)
 
         evaluated_mesh = evaluated_obj.to_mesh()
 
         bm = bmesh.new()
 
-        bm.from_mesh(self.template.data)
+        bm.from_mesh(mesh_obj.data)
 
         bm.verts.ensure_lookup_table()
 
@@ -103,15 +142,17 @@ class SurfaceProjection:
 
         evaluated_obj.to_mesh_clear()
 
-        self.template.modifiers.remove(modifier)
+        mesh_obj.modifiers.remove(modifier)
 
-        bm.to_mesh(self.template.data)
+        bm.to_mesh(mesh_obj.data)
 
-        self.template.data.update()
+        mesh_obj.data.update()
 
         bm.free()
 
         print(
-            f"[SurfaceProjection] {moved_vertices} vertices "
-            f"projetados (project_limit={project_limit:.4f})"
+            f"[SurfaceProjection] modifier aplicado -- "
+            f"{moved_vertices} vertices finalizados"
         )
+
+        return True

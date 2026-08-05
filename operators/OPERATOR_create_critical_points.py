@@ -8,15 +8,20 @@ from ..core import session
 class OPERATOR_create_critical_points(bpy.types.Operator):
 
     #
-    # Posicionamento modal + ray cast: clique esquerdo na malha
-    # esculpida cria/avança um Empty por vez, na ordem de
-    # POINT_NAMES. Precisa bater EXATAMENTE (mesmo texto, mesma
-    # capitalização) com os nomes dos Empties dentro da coleção
-    # "Strcuture_Critical_Points" do VG_Template.blend -- é por
-    # esse nome que core/fitting/structure_warp.py casa cada
-    # ponto do template com o ponto do usuário. Typos como
-    # "Rigth_Ear_Anchor" são do arquivo original e foram
-    # mantidos de propósito.
+    # Posicionamento modal + ray cast: clique esquerdo em
+    # qualquer malha visível cria/avança um Empty por vez, na
+    # ordem de POINT_NAMES. Precisa bater EXATAMENTE (mesmo
+    # texto, mesma capitalização) com os nomes dos Empties
+    # dentro da coleção "Strcuture_Critical_Points" do
+    # VG_Template.blend -- é por esse nome que
+    # core/fitting/structure_warp.py casa cada ponto do template
+    # com o ponto do usuário. Typos como "Rigth_Ear_Anchor" são
+    # do arquivo original e foram mantidos de propósito.
+    #
+    # Não define mais session.target_mesh a partir do ray cast
+    # -- a malha alvo do Shrinkwrap agora é escolhida
+    # explicitamente pelo dropper no painel (Scene.retopo_target,
+    # ver ui/panel.py).
     #
 
     bl_idname = "retopo.create_critical_points"
@@ -34,6 +39,8 @@ class OPERATOR_create_critical_points(bpy.types.Operator):
         "RightEye_Outer_Side",
         "NoseRoot",
         "NoseTip",
+        "Left_Nostril",
+        "Right_Nostril",
         "MouthLeft",
         "MouthRight",
         "UpperLip_Inner_Side",
@@ -148,6 +155,3 @@ class OPERATOR_create_critical_points(bpy.types.Operator):
 
         if hit:
             self.empty.location = location
-
-            if obj is not None:
-                session.target_mesh = obj

@@ -13,7 +13,11 @@ class Fitting:
     #
     # Pipeline de instanciação da malha: importa o template,
     # alinha rígido, aplica o warp não-rígido (TPS) usando os
-    # critical points e cola o resultado na malha esculpida.
+    # critical points, e deixa um modifier Shrinkwrap
+    # configurado (NÃO aplicado) apontando pra malha alvo --
+    # a finalização (bake do Shrinkwrap + remoção dos critical
+    # points) é um passo manual separado, ver
+    # operators/OPERATOR_apply_modifiers.py.
     #
 
     def __init__(self, session):
@@ -62,12 +66,14 @@ class Fitting:
 
         #
         # 3
-        # Cola o template sobre a superfície esculpida
+        # Adiciona o modifier Shrinkwrap apontando pra malha
+        # alvo (Scene.retopo_target). Fica como modifier vivo --
+        # não é aplicado aqui.
         #
 
         if ENABLE_SURFACE_PROJECTION:
 
-            self.project_onto_target()
+            self.add_surface_projection()
 
         else:
 
@@ -80,7 +86,7 @@ class Fitting:
 
     # ---------------------------------------------------------
 
-    def project_onto_target(self):
+    def add_surface_projection(self):
 
         projection = SurfaceProjection(
             self.session
@@ -89,10 +95,10 @@ class Fitting:
         if projection.target is None:
 
             print(
-                "[WARN] Nenhuma malha alvo (target_mesh) foi "
-                "detectada durante o Landmarking; pulando a projeção."
+                "[WARN] Nenhuma malha alvo (Target Mesh) selecionada "
+                "no painel; pulando o Shrinkwrap."
             )
 
         else:
 
-            projection.project()
+            projection.add_modifier()
