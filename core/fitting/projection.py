@@ -1,7 +1,3 @@
-import bpy
-import bmesh
-
-
 class SurfaceProjection:
 
     #
@@ -18,11 +14,12 @@ class SurfaceProjection:
     # Projetar ao longo da normal, com um limite de distância de
     # busca, evita isso.
     #
-    # O modifier fica só ADICIONADO/configurado (add_modifier),
-    # sem ser aplicado -- assim o resultado é sempre uma preview
-    # ao vivo, editável, e o usuário decide quando finalizar
-    # (botão "Apply Modifiers", ver apply_modifier() e
-    # operators/OPERATOR_apply_modifiers.py).
+    # O modifier fica só ADICIONADO/configurado, sem ser
+    # aplicado -- assim o resultado é sempre uma preview ao
+    # vivo, editável. A finalização (bake de TODOS os modifiers,
+    # incluindo o Relax de core/fitting/relax.py) é feita à
+    # parte em core/fitting/finalize.py, usada por
+    # operators/OPERATOR_apply_modifiers.py.
     #
 
     MODIFIER_NAME = "RetopoSurfaceProjection"
@@ -91,68 +88,3 @@ class SurfaceProjection:
         )
 
         return modifier
-
-    # -------------------------------------------------------------
-
-    @staticmethod
-    def apply_modifier(mesh_obj, modifier_name=MODIFIER_NAME):
-
-        #
-        # Finaliza o modifier: avalia via depsgraph e copia o
-        # resultado de volta pro mesh.data ORIGINAL via bmesh --
-        # assim preservamos UVs, materiais e o nome do
-        # datablock, em vez de trocar mesh.data inteiro por um
-        # novo. Depois disso o Shrinkwrap deixa de existir como
-        # modifier (virou geometria de verdade).
-        #
-
-        if mesh_obj is None:
-            return False
-
-        modifier = mesh_obj.modifiers.get(modifier_name)
-
-        if modifier is None:
-            return False
-
-        depsgraph = bpy.context.evaluated_depsgraph_get()
-
-        evaluated_obj = mesh_obj.evaluated_get(depsgraph)
-
-        evaluated_mesh = evaluated_obj.to_mesh()
-
-        bm = bmesh.new()
-
-        bm.from_mesh(mesh_obj.data)
-
-        bm.verts.ensure_lookup_table()
-
-        moved_vertices = 0
-
-        for index, evaluated_vertex in enumerate(evaluated_mesh.vertices):
-
-            #
-            # Shrinkwrap é um modifier "deform-only": não muda
-            # topologia nem contagem de vértices, então o índice
-            # bate 1-pra-1 com o mesh original.
-            #
-
-            bm.verts[index].co = evaluated_vertex.co.copy()
-
-            moved_vertices += 1
-
-        evaluated_obj.to_mesh_clear()
-
-        mesh_obj.modifiers.remove(modifier)
-
-        bm.to_mesh(mesh_obj.data)
-
-        mesh_obj.data.update()
-
-        bm.free()
-
-        print(
-            f"[SurfaceProjection] modifier aplicado -- "
-            f"{moved_vertices} vertices finalizados"
-        )
-
-        return True

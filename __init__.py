@@ -2,6 +2,7 @@ import bpy
 
 from .operators.OPERATOR_create_critical_points import OPERATOR_create_critical_points
 from .operators.OPERATOR_apply_mesh import OPERATOR_apply_mesh
+from .operators.OPERATOR_relax_mesh import OPERATOR_relax_mesh
 from .operators.OPERATOR_apply_modifiers import OPERATOR_apply_modifiers
 
 from .ui.panel import RETOPOLOGY_PT_panel
@@ -21,6 +22,7 @@ bl_info = {
 classes = (
     OPERATOR_create_critical_points,
     OPERATOR_apply_mesh,
+    OPERATOR_relax_mesh,
     OPERATOR_apply_modifiers,
     RETOPOLOGY_PT_panel,
 )
