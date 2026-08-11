@@ -2,7 +2,7 @@ import bpy
 
 from ..core import session
 from ..core.blender_utils import is_valid
-from ..core.fitting.relax import RELAX_MODIFIER_NAME
+from ..core.fitting.modifier_stack import SUBDIVISION_MODIFIER_NAME
 
 
 class RETOPOLOGY_PT_panel(bpy.types.Panel):
@@ -39,38 +39,42 @@ class RETOPOLOGY_PT_panel(bpy.types.Panel):
         layout.label(text="Template")
 
         layout.operator(
-            "retopo.apply_mesh",
+            "retopo.test_inside_nose_and_nostrils",
             text="Apply Mesh",
             icon='MESH_GRID'
         )
 
         layout.separator()
 
-        layout.label(text="Relax")
+        #
+        # Ordem no painel espelha a ordem no modifier stack:
+        # Subdivision -> Shrinkwrap (acima) -> Relax.
+        #
+        # OBS.: o botão/slider de Relax foi escondido do painel a
+        # pedido (só visualmente -- core/fitting/relax.py e
+        # operators/OPERATOR_relax_mesh.py continuam intactos,
+        # registrados, e utilizáveis via busca de operator/F3).
+        # Perguntar ao usuário o que fazer com o relaxamento
+        # (trazer de volta pro painel, mudar de abordagem, ou
+        # remover de vez) numa próxima sessão.
+        #
+
+        layout.label(text="Subdivision")
 
         layout.operator(
-            "retopo.relax_mesh",
-            text="Relax Mesh",
-            icon='MOD_SMOOTH'
+            "retopo.add_subdivision",
+            text="Add Subdivision",
+            icon='MOD_SUBSURF'
         )
 
-        #
-        # O slider só aparece depois que o modifier existe (ou
-        # seja, depois de clicar em "Relax Mesh" pelo menos uma
-        # vez). Ele é ligado DIRETO na property do modifier
-        # (modifier.factor) -- arrastar atualiza a malha na
-        # viewport ao vivo, é o próprio Blender fazendo isso.
-        #
+        subdivision_modifier = self.get_modifier(SUBDIVISION_MODIFIER_NAME)
 
-        relax_modifier = self.get_relax_modifier()
-
-        if relax_modifier is not None:
+        if subdivision_modifier is not None:
 
             layout.prop(
-                relax_modifier,
-                "factor",
-                text="Relax Amount",
-                slider=True
+                subdivision_modifier,
+                "levels",
+                text="Subdivision Level"
             )
 
         layout.separator()
@@ -83,7 +87,7 @@ class RETOPOLOGY_PT_panel(bpy.types.Panel):
 
     # -----------------------------------------------------------
 
-    def get_relax_modifier(self):
+    def get_modifier(self, modifier_name):
 
         if session.template is None:
             return None
@@ -93,4 +97,4 @@ class RETOPOLOGY_PT_panel(bpy.types.Panel):
         if not is_valid(mesh):
             return None
 
-        return mesh.modifiers.get(RELAX_MODIFIER_NAME)
+        return mesh.modifiers.get(modifier_name)

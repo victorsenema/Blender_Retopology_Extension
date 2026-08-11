@@ -41,6 +41,8 @@ class OPERATOR_create_critical_points(bpy.types.Operator):
         "NoseTip",
         "Left_Nostril",
         "Right_Nostril",
+        "Left_Nose_Inside",
+        "Right_Nose_Inside",
         "MouthLeft",
         "MouthRight",
         "UpperLip_Inner_Side",

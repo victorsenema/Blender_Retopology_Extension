@@ -1,3 +1,6 @@
+from .modifier_stack import SHRINKWRAP_MODIFIER_NAME, enforce_order
+
+
 class SurfaceProjection:
 
     #
@@ -17,12 +20,12 @@ class SurfaceProjection:
     # O modifier fica só ADICIONADO/configurado, sem ser
     # aplicado -- assim o resultado é sempre uma preview ao
     # vivo, editável. A finalização (bake de TODOS os modifiers,
-    # incluindo o Relax de core/fitting/relax.py) é feita à
-    # parte em core/fitting/finalize.py, usada por
+    # incluindo Subdivision e Relax) é feita à parte em
+    # core/fitting/finalize.py, usada por
     # operators/OPERATOR_apply_modifiers.py.
     #
 
-    MODIFIER_NAME = "RetopoSurfaceProjection"
+    MODIFIER_NAME = SHRINKWRAP_MODIFIER_NAME
 
     def __init__(self, session):
 
@@ -80,6 +83,14 @@ class SurfaceProjection:
         head_size = max(self.template.dimensions)
 
         modifier.project_limit = head_size * 0.08
+
+        #
+        # Garante a ordem Subdivision -> Shrinkwrap -> Relax no
+        # stack, mesmo se Subdivision/Relax já existirem de uma
+        # rodada anterior.
+        #
+
+        enforce_order(self.template)
 
         print(
             f"[SurfaceProjection] modifier Shrinkwrap adicionado "

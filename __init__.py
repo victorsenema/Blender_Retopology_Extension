@@ -1,7 +1,8 @@
 import bpy
 
 from .operators.OPERATOR_create_critical_points import OPERATOR_create_critical_points
-from .operators.OPERATOR_apply_mesh import OPERATOR_apply_mesh
+from .operators.OPERATOR_test_inside_nose_and_nostrils import OPERATOR_test_inside_nose_and_nostrils
+from .operators.OPERATOR_add_subdivision import OPERATOR_add_subdivision
 from .operators.OPERATOR_relax_mesh import OPERATOR_relax_mesh
 from .operators.OPERATOR_apply_modifiers import OPERATOR_apply_modifiers
 
@@ -21,7 +22,8 @@ bl_info = {
 
 classes = (
     OPERATOR_create_critical_points,
-    OPERATOR_apply_mesh,
+    OPERATOR_test_inside_nose_and_nostrils,
+    OPERATOR_add_subdivision,
     OPERATOR_relax_mesh,
     OPERATOR_apply_modifiers,
     RETOPOLOGY_PT_panel,
@@ -37,7 +39,7 @@ def register():
     # Scene.retopo_target: dropper (PointerProperty nativo do
     # Blender, com o ícone de conta-gotas) pra escolher a malha
     # esculpida onde o template vai ser colado via Shrinkwrap.
-    # Ver operators/OPERATOR_apply_mesh.py.
+    # Ver operators/OPERATOR_test_inside_nose_and_nostrils.py.
     #
 
     bpy.types.Scene.retopo_target = bpy.props.PointerProperty(

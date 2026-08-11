@@ -16,9 +16,22 @@ class StructureWarp:
 
     MIN_POINTS = 4  # TPS 3D precisa de pelo menos 4 pontos não-coplanares
 
-    def __init__(self, session):
+    def __init__(self, session, exclude_points=None):
 
         self.session = session
+
+        #
+        # Conjunto de nomes normalizados (sem prefixo
+        # "CriticalPoint_") que NÃO devem entrar na
+        # correspondência do TPS -- usado pelos botões de teste
+        # (ver operators/OPERATOR_test_inside_nose*.py) pra
+        # comparar o resultado com/sem certos pontos, sem
+        # precisar remover Empty nenhum da cena.
+        #
+
+        self.exclude_points = (
+            set(exclude_points) if exclude_points else set()
+        )
 
     # -------------------------------------------------------------
 
@@ -68,6 +81,9 @@ class StructureWarp:
                 continue
 
             name = normalize_point_name(critical_point.name)
+
+            if name in self.exclude_points:
+                continue
 
             user_point = user_points.get(name)
 

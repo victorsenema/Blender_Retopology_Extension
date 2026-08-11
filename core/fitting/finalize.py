@@ -5,16 +5,22 @@ import bmesh
 def apply_all_modifiers(mesh_obj):
 
     #
-    # Finaliza TUDO que estiver no modifier stack (Shrinkwrap,
-    # Relax, ou qualquer outro) de uma vez: avalia via depsgraph
-    # e crava o resultado final no mesh.data ORIGINAL via bmesh
-    # -- preserva UVs, materiais e o nome do datablock, em vez
-    # de trocar mesh.data inteiro por um novo.
+    # Finaliza TUDO que estiver no modifier stack (Subdivision,
+    # Shrinkwrap, Relax, ou qualquer outro) de uma vez: avalia
+    # via depsgraph e substitui o CONTEÚDO do mesh.data original
+    # pelo resultado avaliado inteiro (vértices, faces, UVs).
     #
-    # Só funciona porque todos os modifiers que este addon usa
-    # (Shrinkwrap, Corrective Smooth) são "deform-only": não
-    # mudam topologia nem contagem de vértices, então o índice
-    # bate 1-pra-1 com o mesh original.
+    # Não dá pra só copiar posição de vértice pra dentro de um
+    # bmesh construído a partir da malha original (técnica válida
+    # só quando todo modifier é "deform-only", tipo Shrinkwrap e
+    # Corrective Smooth): Subdivision Surface muda a topologia
+    # (adiciona vértice/face), então o índice já não bate 1-pra-1
+    # com a malha original -- por isso reconstruímos o bmesh a
+    # partir do resultado AVALIADO, não do original.
+    #
+    # O nome do datablock (mesh_obj.data) é preservado porque
+    # continuamos escrevendo NELE via bm.to_mesh(), só o conteúdo
+    # é trocado.
     #
 
     if mesh_obj is None:
@@ -31,17 +37,7 @@ def apply_all_modifiers(mesh_obj):
 
     bm = bmesh.new()
 
-    bm.from_mesh(mesh_obj.data)
-
-    bm.verts.ensure_lookup_table()
-
-    moved_vertices = 0
-
-    for index, evaluated_vertex in enumerate(evaluated_mesh.vertices):
-
-        bm.verts[index].co = evaluated_vertex.co.copy()
-
-        moved_vertices += 1
+    bm.from_mesh(evaluated_mesh)
 
     evaluated_obj.to_mesh_clear()
 
@@ -51,10 +47,12 @@ def apply_all_modifiers(mesh_obj):
 
     mesh_obj.data.update()
 
+    vertex_count = len(bm.verts)
+
     bm.free()
 
     print(
-        f"[Finalize] {moved_vertices} vertices finalizados, "
+        f"[Finalize] malha finalizada com {vertex_count} vertices, "
         f"modifiers removidos."
     )
 
