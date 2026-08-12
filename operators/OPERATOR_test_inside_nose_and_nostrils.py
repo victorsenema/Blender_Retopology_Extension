@@ -1,3 +1,5 @@
+import traceback
+
 import bpy
 
 from ..core import session
@@ -39,7 +41,42 @@ class OPERATOR_test_inside_nose_and_nostrils(bpy.types.Operator):
 
         fitting = Fitting(session)
 
-        fitting.execute()
+        try:
+
+            fitting.execute()
+
+        except RuntimeError as error:
+
+            #
+            # Erros "esperados" (ex.: referência de critical
+            # point ficou inválida por Undo/troca de modo entre
+            # Landmarking e Apply Mesh -- ver
+            # Alignment.validate_required_points) já vêm com
+            # mensagem clara o bastante pra mostrar direto pro
+            # usuário, sem traceback.
+            #
+
+            self.report({'ERROR'}, str(error))
+
+            return {'CANCELLED'}
+
+        except Exception as error:
+
+            #
+            # Qualquer outra coisa inesperada: ainda reporta
+            # limpo na UI, mas manda o traceback completo pro
+            # console/System Console pra dar pra debugar.
+            #
+
+            traceback.print_exc()
+
+            self.report(
+                {'ERROR'},
+                f"Apply Mesh falhou ({error}). Veja o System Console "
+                f"pra detalhes."
+            )
+
+            return {'CANCELLED'}
 
         self.report(
             {'INFO'},

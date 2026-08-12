@@ -2,9 +2,28 @@ import bpy
 from mathutils import Vector, Matrix
 from .rotation import Rotation
 from .scale import Scale
-from ..blender_utils import normalize_point_name
+from ..blender_utils import normalize_point_name, is_valid
 
 class Alignment:
+
+    #
+    # Pontos que o resto do Alignment/Scale/Rotation acessa por
+    # nome exato (fora o "LeftEye"/"RightEye" por prefixo, que já
+    # tem seu próprio guard em average_position). Se qualquer um
+    # destes faltar -- de qualquer lado, template ou usuário --
+    # o resto do cálculo quebraria com um erro sem contexto lá no
+    # meio de scale.py/rotation.py; validate_required_points()
+    # pega isso antes e dá um erro claro.
+    #
+
+    REQUIRED_POINTS = (
+        "JawLeft",
+        "JawRight",
+        "ForeheadTop",
+        "Chin",
+        "NoseRoot",
+        "NoseTip",
+    )
 
     def __init__(self, session):
 
@@ -20,6 +39,8 @@ class Alignment:
         self.collect_user_points()
 
         self.print_matches()
+
+        self.validate_required_points()
 
         scale = self.calculate_scale()
 
@@ -39,6 +60,24 @@ class Alignment:
         print("\n========== TEMPLATE POINTS ==========")
 
         for critical_point in self.session.template.critical_points:
+
+            #
+            # Sem essa checagem, uma referência morta (Undo,
+            # troca de modo etc. -- ver core/blender_utils.
+            # is_valid) ficava guardada aqui silenciosamente e só
+            # estourava um ReferenceError depois, lá dentro de
+            # scale.py, sem dizer qual ponto era o problema.
+            #
+
+            if not is_valid(critical_point.empty):
+
+                print(
+                    f"[Alignment] ERRO: referência do template "
+                    f"point '{critical_point.name}' ficou "
+                    f"inválida -- pulando."
+                )
+
+                continue
 
             empty = critical_point.empty
 
@@ -61,9 +100,45 @@ class Alignment:
 
         for point in self.session.critical_points:
 
+            if not is_valid(point.empty):
+
+                print(
+                    f"[Alignment] ERRO: referência do critical "
+                    f"point do usuário '{point.name}' ficou "
+                    f"inválida (Undo, troca de modo, etc. entre o "
+                    f"Landmarking e o Apply Mesh) -- pulando."
+                )
+
+                continue
+
             self.user_points[
                 normalize_point_name(point.name)
             ] = point.empty
+
+    # --------------------------------------------------
+
+    def validate_required_points(self):
+
+        for label, points in (
+            ("template", self.template_points),
+            ("usuário", self.user_points),
+        ):
+
+            missing = [
+                name for name in self.REQUIRED_POINTS
+                if name not in points
+            ]
+
+            if missing:
+
+                raise RuntimeError(
+                    f"Faltam pontos obrigatórios no lado do "
+                    f"{label}: {', '.join(missing)}. Alguma "
+                    f"referência ficou inválida (Undo/troca de "
+                    f"modo?) ou o Landmarking não terminou -- "
+                    f"rode 'Create Critical Points' de novo e "
+                    f"depois 'Apply Mesh'."
+                )
 
     # --------------------------------------------------
 
