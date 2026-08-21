@@ -1,6 +1,7 @@
 import bpy
 import os
 
+from . import scene_collections
 from .template import Template
 from .fitting.critical_points import CriticalPoint
 
@@ -38,6 +39,8 @@ def import_template():
     # saber depois de onde cada Empty veio.
     #
 
+    requested_names = []
+
     with bpy.data.libraries.load(template_path, link=False) as (data_from, data_to):
 
         wanted = {
@@ -45,30 +48,55 @@ def import_template():
             STRUCTURE_COLLECTION_NAME,
         }
 
-        data_to.collections = [
+        requested_names = [
             name for name in data_from.collections
             if name in wanted
         ]
 
-    imported_collections = {
-        collection.name: collection
-        for collection in data_to.collections
-        if collection is not None
-    }
+        data_to.collections = requested_names
 
     #
-    # Linka as coleções raiz na cena. Isso traz junto, de forma
-    # automática, toda a hierarquia de subcoleções
-    # (Left/Neutral/Right) e os objetos dentro delas.
+    # As coleções carregadas vêm NA MESMA ORDEM dos nomes pedidos,
+    # e é por essa ordem que elas são identificadas aqui.
     #
+    # Antes este dict era montado com {collection.name: collection}
+    # e consultado por MESH_COLLECTION_NAME -- o que quebrava na
+    # SEGUNDA rodada dentro do mesmo arquivo: já existindo uma
+    # "Template_Mesh" na cena, o Blender nomeia a recém-importada
+    # como "Template_Mesh.001", a busca por "Template_Mesh" não
+    # achava nada, e o import morria com "Template mesh not found".
+    #
+
+    imported_collections = {}
+
+    for original_name, collection in zip(requested_names, data_to.collections):
+
+        if collection is not None:
+            imported_collections[original_name] = collection
+
+    #
+    # Tudo do addon mora debaixo da raiz "Retopology" (ver
+    # core/scene_collections.py), não na coleção ativa da cena -- assim
+    # o que é do addon fica separado do que é do usuário, e a
+    # limpeza depois do Apply Mesh sabe exatamente o que pode
+    # apagar.
+    #
+    # Linkar as coleções raiz traz junto, de forma automática,
+    # toda a hierarquia de subcoleções (Left/Neutral/Right) e os
+    # objetos dentro delas.
+    #
+
+    root = scene_collections.get_root()
 
     for collection in imported_collections.values():
 
-        bpy.context.collection.children.link(collection)
+        root.children.link(collection)
 
     template = Template()
 
     template.objects = []
+
+    template.collections = list(imported_collections.values())
 
     #
     # Malha

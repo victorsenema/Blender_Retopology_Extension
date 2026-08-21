@@ -10,6 +10,16 @@ class Template:
 
         self.objects = []
 
+        #
+        # Coleções importadas do .blend (Template_Mesh e
+        # Strcuture_Critical_Points). Guardadas pra que a limpeza
+        # depois do Apply Mesh saiba exatamente quais coleções são
+        # do addon -- ver Fitting.destroy_critical_points() e
+        # core/scene_collections.purge_if_empty().
+        #
+
+        self.collections = []
+
         self.mesh = None
 
         self.critical_points = []

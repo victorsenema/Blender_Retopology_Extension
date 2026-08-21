@@ -9,19 +9,17 @@ class OPERATOR_apply_modifiers(bpy.types.Operator):
 
     #
     # Passo final: finaliza TODOS os modifiers na malha (o
-    # Shrinkwrap de "Apply Mesh" e o Relax de "Relax Mesh", se
-    # estiver ativo -- ver core/fitting/finalize.py) e remove da
-    # cena os Empties de critical point (tanto os do template
-    # quanto os que o usuário posicionou no Landmarking), já que
-    # não servem mais depois que a malha está finalizada.
+    # Shrinkwrap de "Apply Mesh", a Subdivision de "Add
+    # Subdivision" e o Relax de "Relax Mesh" se estiver ativo --
+    # ver core/fitting/finalize.py). Os critical points já não
+    # existem mais nesse ponto -- Apply Mesh (Fitting.execute) já
+    # os removeu da cena assim que terminou o warp TPS, ver
+    # Fitting.destroy_critical_points().
     #
 
     bl_idname = "retopo.apply_modifiers"
     bl_label = "Apply Modifiers"
-    bl_description = (
-        "Finaliza todos os modifiers na malha e remove os critical "
-        "points da cena"
-    )
+    bl_description = "Finaliza todos os modifiers na malha"
 
     def execute(self, context):
 
@@ -45,30 +43,11 @@ class OPERATOR_apply_modifiers(bpy.types.Operator):
                 "Nenhum modifier encontrado pra aplicar."
             )
 
-        removed = 0
+        else:
 
-        all_points = (
-            list(session.template.critical_points) +
-            list(session.critical_points)
-        )
-
-        for critical_point in all_points:
-
-            if is_valid(critical_point.empty):
-
-                bpy.data.objects.remove(
-                    critical_point.empty,
-                    do_unlink=True
-                )
-
-                removed += 1
-
-        session.template.critical_points.clear()
-        session.critical_points.clear()
-
-        self.report(
-            {'INFO'},
-            f"Modifiers aplicados, {removed} critical points removidos."
-        )
+            self.report(
+                {'INFO'},
+                "Modifiers aplicados."
+            )
 
         return {'FINISHED'}

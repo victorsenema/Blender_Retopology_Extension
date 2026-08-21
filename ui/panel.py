@@ -3,6 +3,8 @@ import bpy
 from ..core import session
 from ..core.blender_utils import is_valid
 from ..core.fitting.modifier_stack import SUBDIVISION_MODIFIER_NAME
+from ..core.fitting.symmetry import points_to_place, total_points
+from ..core.fitting.vertex_control import has_topology_changing_modifier
 
 
 class RETOPOLOGY_PT_panel(bpy.types.Panel):
@@ -28,6 +30,8 @@ class RETOPOLOGY_PT_panel(bpy.types.Panel):
 
         layout.label(text="Landmarking")
 
+        self.draw_symmetry(context, layout)
+
         layout.operator(
             "retopo.create_critical_points",
             text="Create Critical Points",
@@ -43,6 +47,10 @@ class RETOPOLOGY_PT_panel(bpy.types.Panel):
             text="Apply Mesh",
             icon='MESH_GRID'
         )
+
+        layout.separator()
+
+        self.draw_fine_tuning(context, layout)
 
         layout.separator()
 
@@ -87,7 +95,154 @@ class RETOPOLOGY_PT_panel(bpy.types.Panel):
 
     # -----------------------------------------------------------
 
+    def draw_symmetry(self, context, layout):
+
+        #
+        # Cabeça espelhada: o usuário clica só um lado e o ponto
+        # do outro lado nasce junto, seguindo o mouse em tempo
+        # real; os pontos do meio da face ficam travados no plano
+        # de simetria. Ver core/fitting/symmetry.py e o operator
+        # do Landmarking.
+        #
+        # O plano é o plano LOCAL do objeto alvo -- a mesma
+        # referência do sculpt simétrico do Blender -- por isso o
+        # Target precisa estar escolhido antes.
+        #
+
+        scene = context.scene
+
+        layout.prop(scene, "retopo_symmetric", text="Objeto Espelhado")
+
+        if not scene.retopo_symmetric:
+            return
+
+        row = layout.row(align=True)
+
+        row.prop(scene, "retopo_mirror_axis", expand=True)
+
+        if scene.retopo_target is None:
+
+            box = layout.box()
+
+            box.label(text="Escolha o Target antes:", icon='ERROR')
+            box.label(text="o plano vem do objeto alvo.")
+
+            return
+
+        layout.label(
+            text=f"{points_to_place()} cliques de {total_points()} pontos"
+        )
+
+    # -----------------------------------------------------------
+
+    def draw_fine_tuning(self, context, layout):
+
+        #
+        # Ajuste fino: arrasta direto os vértices em destaque (ver
+        # ui/vertex_highlight.py) dos vertex groups de controle
+        # (Nose_VG/Face_VG/Eyes_VG/Mouth_VG), como um Proportional
+        # Editing em Object Mode. Só faz sentido DEPOIS do Apply
+        # Mesh (que traz a malha com esses grupos já pintados) e
+        # ANTES do Apply Modifiers (que crava Shrinkwrap/
+        # Subdivision e reconstrói a malha a partir do resultado
+        # avaliado -- ver finalize.py -- perdendo a correspondência
+        # de vertex group nesse processo).
+        #
+
+        layout.label(text="Fine-Tuning")
+
+        template_mesh = self.get_template_mesh()
+
+        #
+        # A seção inteira fica desabilitada (cinza) enquanto não
+        # existe malha de template -- é mais honesto que deixar
+        # clicar pra receber um erro dizendo "rode o Apply Mesh
+        # antes".
+        #
+
+        column = layout.column()
+
+        column.enabled = template_mesh is not None
+
+        if template_mesh is not None:
+
+            #
+            # Wireframe do template por cima da malha esculpida --
+            # liga show_wire (desenha as arestas) + show_in_front
+            # (ignora profundidade, aparece por cima de tudo)
+            # direto no objeto. É a mesma dupla de properties que
+            # o "In Front" do painel Object Properties > Viewport
+            # Display usa -- só exposta aqui pra não precisar sair
+            # do painel da Retopology.
+            #
+
+            row = column.row(align=True)
+
+            row.prop(
+                template_mesh,
+                "show_wire",
+                text="Wireframe",
+                toggle=True
+            )
+
+            row.prop(
+                template_mesh,
+                "show_in_front",
+                text="Show In Front",
+                toggle=True
+            )
+
+        column.operator(
+            "retopo.nudge_vertex",
+            text="Nudge Vertex",
+            icon='VIEW_PAN'
+        )
+
+        column.prop(
+            context.scene,
+            "retopo_nudge_radius",
+            text="Influence Radius"
+        )
+
+        column.prop(
+            context.scene,
+            "retopo_nudge_affect_control",
+            text="Affect Control Points"
+        )
+
+        #
+        # Aviso: com Subdivision ativa a malha avaliada tem outra
+        # contagem de vértices, então não dá pra saber onde cada
+        # vértice de controle foi parar depois dos modifiers -- o
+        # destaque cai pra posição da malha base e os pontos podem
+        # aparecer afastados da superfície que se vê. Ver
+        # vertex_control.get_display_positions().
+        #
+
+        if (
+            template_mesh is not None and
+            has_topology_changing_modifier(template_mesh)
+        ):
+
+            box = layout.box()
+
+            box.label(text="Subdivision ativa:", icon='INFO')
+            box.label(text="pontos na posicao da malha base.")
+
+    # -----------------------------------------------------------
+
     def get_modifier(self, modifier_name):
+
+        mesh = self.get_template_mesh()
+
+        if mesh is None:
+            return None
+
+        return mesh.modifiers.get(modifier_name)
+
+    # -----------------------------------------------------------
+
+    def get_template_mesh(self):
 
         if session.template is None:
             return None
@@ -97,4 +252,4 @@ class RETOPOLOGY_PT_panel(bpy.types.Panel):
         if not is_valid(mesh):
             return None
 
-        return mesh.modifiers.get(modifier_name)
+        return mesh

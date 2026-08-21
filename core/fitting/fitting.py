@@ -2,6 +2,7 @@ import bpy
 
 from ..template_manager import import_template
 from ..blender_utils import is_valid
+from .. import scene_collections
 
 from .alignment import Alignment
 from .structure_warp import StructureWarp
@@ -98,6 +99,20 @@ class Fitting:
                     "(ENABLE_SURFACE_PROJECTION = False)."
                 )
 
+            #
+            # 4
+            # A partir daqui o ajuste fino é feito direto nos
+            # vértices dos vertex groups de controle (ver
+            # core/fitting/vertex_control.py), não mais nos
+            # critical points -- eles já cumpriram o papel deles
+            # (alinhamento + warp TPS) e só atrapalhariam a cena
+            # a partir daqui. Antes isso só acontecia no botão
+            # separado "Apply Modifiers"; agora faz parte do
+            # próprio Apply Mesh.
+            #
+
+            self.destroy_critical_points()
+
         except Exception:
 
             #
@@ -142,6 +157,65 @@ class Fitting:
             f"[Fitting] Falha no meio do processo -- {removed} "
             f"objetos do template importado foram removidos da "
             f"cena pra não deixar lixo."
+        )
+
+    # ---------------------------------------------------------
+
+    def destroy_critical_points(self):
+
+        removed = 0
+
+        for critical_point in list(self.session.template.critical_points):
+
+            if is_valid(critical_point.empty):
+
+                bpy.data.objects.remove(
+                    critical_point.empty,
+                    do_unlink=True
+                )
+
+                removed += 1
+
+        for critical_point in list(self.session.critical_points):
+
+            if is_valid(critical_point.empty):
+
+                bpy.data.objects.remove(
+                    critical_point.empty,
+                    do_unlink=True
+                )
+
+                removed += 1
+
+        self.session.template.critical_points.clear()
+        self.session.critical_points.clear()
+
+        #
+        # As coleções que ficaram vazias vão junto -- é o que evita
+        # empilhar "Strcuture_Critical_Points.001", ".002"... a
+        # cada rodada do addon no mesmo arquivo.
+        #
+        # purge_if_empty() nunca apaga coleção que ainda tenha
+        # objeto ou subcoleção dentro, então a Template_Mesh (que
+        # guarda a malha resultante, inclusive de uma rodada
+        # anterior que o usuário queira manter) fica onde está.
+        #
+
+        purged = 0
+
+        for collection in getattr(self.session.template, "collections", []):
+
+            if scene_collections.purge_if_empty(collection):
+                purged += 1
+
+        if scene_collections.purge_if_empty(
+            scene_collections.get_user_points(create=False)
+        ):
+            purged += 1
+
+        print(
+            f"[Fitting] {removed} critical points removidos da cena, "
+            f"{purged} coleção(ões) vazia(s) limpa(s)."
         )
 
     # ---------------------------------------------------------

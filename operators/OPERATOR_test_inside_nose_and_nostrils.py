@@ -2,8 +2,12 @@ import traceback
 
 import bpy
 
+from ..core import scene_collections
 from ..core import session
+from ..core.blender_utils import is_valid
+from ..core.fitting.critical_points import collect_from_collection
 from ..core.fitting.fitting import Fitting
+from ..core.fitting.vertex_control import default_influence_radius
 
 
 class OPERATOR_test_inside_nose_and_nostrils(bpy.types.Operator):
@@ -38,6 +42,35 @@ class OPERATOR_test_inside_nose_and_nostrils(bpy.types.Operator):
             return {'CANCELLED'}
 
         session.target_mesh = context.scene.retopo_target
+
+        #
+        # Relê os critical points do usuário da CENA antes de
+        # qualquer conta. Um Ctrl+Z entre o Landmarking e o Apply
+        # Mesh invalida as referências Python guardadas em
+        # session.critical_points sem invalidar os Empties -- daí o
+        # erro "Faltam pontos obrigatórios no lado do usuário" com
+        # os pontos visivelmente ali na tela. A coleção é a fonte
+        # da verdade; ver core/fitting/critical_points.
+        # collect_from_collection().
+        #
+
+        recovered = collect_from_collection(
+            scene_collections.get_user_points(context, create=False)
+        )
+
+        if recovered:
+
+            session.critical_points[:] = recovered
+
+        elif not session.critical_points:
+
+            self.report(
+                {'ERROR'},
+                "Nenhum critical point na cena. Rode 'Create Critical "
+                "Points' antes do Apply Mesh."
+            )
+
+            return {'CANCELLED'}
 
         fitting = Fitting(session)
 
@@ -77,6 +110,21 @@ class OPERATOR_test_inside_nose_and_nostrils(bpy.types.Operator):
             )
 
             return {'CANCELLED'}
+
+        #
+        # Raio de influência inicial do Nudge Vertex,
+        # proporcional ao tamanho da cabeça que acabou de ser
+        # importada -- assim o slider do painel já nasce com um
+        # valor utilizável em vez de zero, e o raio acompanha a
+        # escala do modelo do usuário. Ver
+        # core/fitting/vertex_control.default_influence_radius().
+        #
+
+        if is_valid(session.template.mesh):
+
+            context.scene.retopo_nudge_radius = (
+                default_influence_radius(session.template.mesh)
+            )
 
         self.report(
             {'INFO'},
