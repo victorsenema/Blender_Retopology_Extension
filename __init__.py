@@ -6,6 +6,7 @@ from .operators.OPERATOR_add_subdivision import OPERATOR_add_subdivision
 from .operators.OPERATOR_relax_mesh import OPERATOR_relax_mesh
 from .operators.OPERATOR_apply_modifiers import OPERATOR_apply_modifiers
 from .operators.OPERATOR_nudge_vertex import OPERATOR_nudge_vertex
+from .operators.OPERATOR_reset_scene import OPERATOR_reset_scene
 
 from .core.fitting import symmetry_link
 from .ui.panel import RETOPOLOGY_PT_panel
@@ -30,6 +31,7 @@ classes = (
     OPERATOR_relax_mesh,
     OPERATOR_apply_modifiers,
     OPERATOR_nudge_vertex,
+    OPERATOR_reset_scene,
     RETOPOLOGY_PT_panel,
 )
 

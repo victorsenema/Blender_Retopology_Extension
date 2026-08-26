@@ -48,6 +48,13 @@ class Fitting:
 
         self.session.template = import_template()
 
+        #
+        # Guarda o nome pra que session.resolve_template_mesh()
+        # consiga reencontrar a malha depois de um Undo.
+        #
+
+        self.session.template_mesh_name = self.session.template.mesh.name
+
         print("Template imported successfully.")
 
         try:
@@ -191,31 +198,21 @@ class Fitting:
         self.session.critical_points.clear()
 
         #
-        # As coleções que ficaram vazias vão junto -- é o que evita
-        # empilhar "Strcuture_Critical_Points.001", ".002"... a
-        # cada rodada do addon no mesmo arquivo.
+        # NÃO removemos coleções aqui.
         #
-        # purge_if_empty() nunca apaga coleção que ainda tenha
-        # objeto ou subcoleção dentro, então a Template_Mesh (que
-        # guarda a malha resultante, inclusive de uma rodada
-        # anterior que o usuário queira manter) fica onde está.
+        # A versão anterior purgava as coleções vazias no fim do
+        # Apply Mesh. Remover coleção obriga o Blender a
+        # reconstruir as relações de parentesco, e fazer isso
+        # dentro do pipeline -- que roda num operator, cercado de
+        # passos de undo -- é um dos suspeitos do crash em
+        # collection_parents_rebuild_recursive durante o Ctrl+Z.
+        # A limpeza virou explícita: botão "Reset" no painel, com
+        # confirmação, fora de qualquer pipeline. Ver
+        # operators/OPERATOR_reset_scene.py.
         #
-
-        purged = 0
-
-        for collection in getattr(self.session.template, "collections", []):
-
-            if scene_collections.purge_if_empty(collection):
-                purged += 1
-
-        if scene_collections.purge_if_empty(
-            scene_collections.get_user_points(create=False)
-        ):
-            purged += 1
 
         print(
-            f"[Fitting] {removed} critical points removidos da cena, "
-            f"{purged} coleção(ões) vazia(s) limpa(s)."
+            f"[Fitting] {removed} critical points removidos da cena."
         )
 
     # ---------------------------------------------------------

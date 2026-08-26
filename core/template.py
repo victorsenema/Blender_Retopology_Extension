@@ -12,10 +12,12 @@ class Template:
 
         #
         # Coleções importadas do .blend (Template_Mesh e
-        # Strcuture_Critical_Points). Guardadas pra que a limpeza
-        # depois do Apply Mesh saiba exatamente quais coleções são
-        # do addon -- ver Fitting.destroy_critical_points() e
-        # core/scene_collections.purge_if_empty().
+        # Strcuture_Critical_Points). Guardadas pra saber o que é
+        # do addon nesta rodada. A limpeza NÃO acontece mais no
+        # fim do Apply Mesh -- mexer em coleção dentro do pipeline
+        # foi um dos suspeitos do crash no rebuild de parentesco
+        # durante o undo. Ver o aviso no topo do Notes.txt e
+        # operators/OPERATOR_reset_scene.py.
         #
 
         self.collections = []

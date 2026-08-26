@@ -94,6 +94,10 @@ def check_global_names(tree, rel):
     # nomes ligados dentro de escopos (parametros, locais, comprehensions)
     local = set()
     for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            # def/class aninhado liga o nome no escopo de fora
+            local.add(node.name)
+
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
             args = node.args
             for group in (args.posonlyargs, args.args, args.kwonlyargs):

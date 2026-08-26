@@ -1,0 +1,55 @@
+#
+# Modelos de teste
+#
+# Só o Man1 fica versionado -- é o modelo usado no dia a dia do
+# desenvolvimento. Os outros (Frankstein, Goblin, Woman_Zombie)
+# são arquivos de 25-66 MB cada que só existem pra testar casos
+# diferentes de vez em quando; versionar isso enche o repositório
+# de blob gigante a cada salvamento.
+#
+# A regra ignora a pasta inteira e reabre a exceção -- assim um
+# modelo novo largado ali não entra por acidente.
+#
+
+test_models/*
+!test_models/Man1.blend
+
+
+#
+# Backups automáticos do Blender (.blend1, .blend2, ...).
+#
+# São cópias do arquivo anterior, geradas sozinhas a cada
+# salvamento. Não são fonte de nada: o conteúdo já está no .blend
+# correspondente, e cada uma vira mais um blob do tamanho do
+# arquivo inteiro no histórico.
+#
+
+*.blend[0-9]*
+
+
+#
+# Pacote de distribuição do addon -- gerado a partir do código,
+# não é fonte.
+#
+
+*.zip
+
+
+#
+# Notas de trabalho (Notes.txt / Pipeline.txt).
+#
+# Ficam no disco e continuam sendo mantidas -- são a memória do
+# projeto -- mas fora do repositório: são anotações internas, em
+# linguagem informal, que não fazem parte do que se publica.
+#
+
+Notes.txt
+Pipeline.txt
+
+
+#
+# Python
+#
+
+__pycache__/
+*.py[cod]

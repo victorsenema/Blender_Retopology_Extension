@@ -243,10 +243,7 @@ def _draw_falloff(shader):
 
 def _draw():
 
-    if session.template is None:
-        return
-
-    mesh_obj = session.template.mesh
+    mesh_obj = session.resolve_template_mesh()
 
     if not is_valid(mesh_obj):
         return

@@ -66,6 +66,18 @@ def get_root(context=None, create=True):
 
         collection = bpy.data.collections.new(ROOT_NAME)
 
+    if not create:
+
+        #
+        # Consulta somente-leitura -- devolve o que existe sem
+        # mexer em hierarquia. Linkar coleção numa chamada que o
+        # chamador acha que é só leitura é justamente o tipo de
+        # efeito colateral escondido que a gente está tirando
+        # daqui depois do crash no rebuild de parentesco.
+        #
+
+        return collection
+
     if not _is_in_scene(scene, collection):
 
         scene.collection.children.link(collection)
@@ -81,12 +93,16 @@ def get_user_points(context=None, create=True):
 
     collection = bpy.data.collections.get(USER_POINTS_NAME)
 
+    created = False
+
     if collection is None:
 
         if not create:
             return None
 
         collection = bpy.data.collections.new(USER_POINTS_NAME)
+
+        created = True
 
     if not create:
 
@@ -98,28 +114,25 @@ def get_user_points(context=None, create=True):
 
         return collection
 
-    root = get_root(context, create=True)
-
-    if collection.name not in root.children:
+    if created:
 
         #
-        # Pode estar linkada em outro lugar (usuário arrastou na
-        # Outliner, arquivo antigo, etc.) -- desliga de onde
-        # estiver antes de pendurar na raiz, senão a coleção
-        # apareceria em dois lugares.
+        # Só linka na raiz a coleção que ACABAMOS de criar.
+        #
+        # A versão anterior tentava ser esperta: se a coleção já
+        # existisse e não estivesse debaixo da raiz, ela varria
+        # bpy.data.collections inteira desligando a coleção de
+        # todo pai e religando na raiz. Isso é cirurgia de
+        # hierarquia global a cada Landmarking, e é um dos dois
+        # suspeitos do crash em
+        # collection_parents_rebuild_recursive durante o undo
+        # (o outro era ed.undo_push chamado de dentro de um
+        # operator modal). Não vale o risco: se o usuário arrastou
+        # a coleção pra outro lugar na Outliner, o addon respeita
+        # e continua usando ela onde está.
         #
 
-        for parent in bpy.data.collections:
-
-            if collection.name in parent.children:
-                parent.children.unlink(collection)
-
-        scene_collection = (context or bpy.context).scene.collection
-
-        if collection.name in scene_collection.children:
-            scene_collection.children.unlink(collection)
-
-        root.children.link(collection)
+        get_root(context, create=True).children.link(collection)
 
     return collection
 
@@ -147,32 +160,39 @@ def clear_objects(collection):
     return removed
 
 
-def purge_if_empty(collection):
+def remove_collection(collection, with_objects=True):
 
     #
-    # Apaga a coleção se ela não tiver mais nada dentro. Nunca
-    # apaga coleção com objeto ou subcoleção -- é o que garante
-    # que a malha finalizada de uma rodada anterior (que mora em
-    # Template_Mesh) nunca seja levada junto na limpeza.
+    # Remoção explícita, usada só pelo botão "Reset" do painel --
+    # nunca automática no meio do pipeline. Mexer em hierarquia de
+    # coleção dentro do mesmo operator que gera passos de undo é
+    # justamente o padrão que derrubou o Blender antes.
     #
 
     if collection is None:
-        return False
+        return 0
+
+    removed = 0
 
     try:
-
-        if collection.objects or collection.children:
-            return False
+        objects = list(collection.objects)
+        children = list(collection.children)
 
     except ReferenceError:
+        return 0
 
-        #
-        # Já removida por outro caminho (Undo, o usuário apagou na
-        # Outliner) -- nada a fazer.
-        #
+    if with_objects:
 
-        return False
+        for obj in objects:
+
+            bpy.data.objects.remove(obj, do_unlink=True)
+
+            removed += 1
+
+    for child in children:
+
+        removed += remove_collection(child, with_objects=with_objects)
 
     bpy.data.collections.remove(collection)
 
-    return True
+    return removed

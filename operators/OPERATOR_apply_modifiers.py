@@ -23,7 +23,14 @@ class OPERATOR_apply_modifiers(bpy.types.Operator):
 
     def execute(self, context):
 
-        if session.template is None or not is_valid(session.template.mesh):
+        #
+        # Ver a nota em OPERATOR_add_subdivision: a referência
+        # guardada morre num Ctrl+Z, o nome sobrevive.
+        #
+
+        mesh = session.resolve_template_mesh()
+
+        if not is_valid(mesh):
 
             self.report(
                 {'ERROR'},
@@ -31,8 +38,6 @@ class OPERATOR_apply_modifiers(bpy.types.Operator):
             )
 
             return {'CANCELLED'}
-
-        mesh = session.template.mesh
 
         applied = apply_all_modifiers(mesh)
 

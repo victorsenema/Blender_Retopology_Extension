@@ -229,6 +229,47 @@ check(
     vc.falloff_weights(distances, 0.0, set(), CENTER) == {},
 )
 
+print("world_positions / mean_edge_length")
+
+positions = vc.world_positions(obj)
+
+check(
+    "world_positions devolve uma tupla por vertice",
+    len(positions) == N * N and len(positions[0]) == 3,
+    (len(positions), positions[0]),
+)
+check(
+    "com identidade, a posicao de mundo e a local",
+    positions[CENTER] == (float(N // 2), float(N // 2), 0.0),
+    positions[CENTER],
+)
+check(
+    "com escala 2x, a posicao de mundo dobra",
+    vc.world_positions(scaled_obj)[CENTER] == (
+        float(N // 2) * 2.0,
+        float(N // 2) * 2.0,
+        0.0,
+    ),
+    vc.world_positions(scaled_obj)[CENTER],
+)
+
+#
+# Grade de espacamento 1.0: toda aresta mede exatamente 1, entao a
+# media tem que ser 1 -- e 2 com o objeto escalado, porque a
+# medida e em espaco de MUNDO.
+#
+
+check(
+    "espacamento medio da grade = 1.0",
+    abs(vc.mean_edge_length(obj) - 1.0) < 1e-9,
+    vc.mean_edge_length(obj),
+)
+check(
+    "espacamento medio acompanha a escala do objeto",
+    abs(vc.mean_edge_length(scaled_obj) - 2.0) < 1e-9,
+    vc.mean_edge_length(scaled_obj),
+)
+
 print()
 if failures:
     print(f"{len(failures)} FALHA(S): {failures}")

@@ -2,7 +2,10 @@ import bpy
 
 from ..core import session
 from ..core.blender_utils import is_valid
-from ..core.fitting.modifier_stack import SUBDIVISION_MODIFIER_NAME
+from ..core.fitting.modifier_stack import (
+    SHRINKWRAP_MODIFIER_NAME,
+    SUBDIVISION_MODIFIER_NAME,
+)
 from ..core.fitting.symmetry import points_to_place, total_points
 from ..core.fitting.vertex_control import has_topology_changing_modifier
 
@@ -91,6 +94,25 @@ class RETOPOLOGY_PT_panel(bpy.types.Panel):
             "retopo.apply_modifiers",
             text="Apply Modifiers",
             icon='CHECKMARK'
+        )
+
+        layout.separator()
+
+        #
+        # Limpeza da cena. Fica separado e em vermelho de propósito
+        # -- é destrutivo, pede confirmação, e apaga a malha do
+        # template junto (que é onde mora o resultado). Ver
+        # operators/OPERATOR_reset_scene.py.
+        #
+
+        row = layout.row()
+
+        row.alert = True
+
+        row.operator(
+            "retopo.reset_scene",
+            text="Reset (limpar cena)",
+            icon='TRASH'
         )
 
     # -----------------------------------------------------------
@@ -192,6 +214,39 @@ class RETOPOLOGY_PT_panel(bpy.types.Panel):
                 toggle=True
             )
 
+        #
+        # Liga/desliga o Shrinkwrap SEM removê-lo do stack.
+        #
+        # Por que isso fica aqui, junto do Nudge: o Shrinkwrap
+        # (modo PROJECT) reprojeta cada vértice na malha alvo
+        # depois de QUALQUER mudança. Arrastar um vértice pra
+        # dentro ou pra fora da superfície não produz efeito
+        # nenhum -- ele volta na hora. Só o deslizamento ao longo
+        # da superfície "pega".
+        #
+        # Isso é o comportamento correto pro resultado final (a
+        # malha tem que ficar colada no alvo), mas atrapalha na
+        # hora de entender o que está acontecendo, e às vezes
+        # atrapalha o próprio ajuste. Desligando aqui, você edita
+        # a malha diretamente e vê o que está fazendo; religando,
+        # o Shrinkwrap recola tudo no alvo. O modifier continua no
+        # stack o tempo todo, então o Apply Modifiers no fim
+        # produz o mesmo resultado.
+        #
+
+        shrinkwrap = self.get_modifier(SHRINKWRAP_MODIFIER_NAME)
+
+        if shrinkwrap is not None:
+
+            row = column.row(align=True)
+
+            row.prop(
+                shrinkwrap,
+                "show_viewport",
+                text="Shrinkwrap ativo",
+                toggle=True
+            )
+
         column.operator(
             "retopo.nudge_vertex",
             text="Nudge Vertex",
@@ -244,10 +299,7 @@ class RETOPOLOGY_PT_panel(bpy.types.Panel):
 
     def get_template_mesh(self):
 
-        if session.template is None:
-            return None
-
-        mesh = session.template.mesh
+        mesh = session.resolve_template_mesh()
 
         if not is_valid(mesh):
             return None

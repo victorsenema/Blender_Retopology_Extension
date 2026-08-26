@@ -51,6 +51,29 @@ class OPERATOR_create_critical_points(bpy.types.Operator):
     bl_idname = "retopo.create_critical_points"
     bl_label = "Place Critical Points"
 
+    #
+    # UNDO: quem empurra o passo é o Blender, quando a ferramenta
+    # TERMINA -- é pra isso que serve 'UNDO' aqui.
+    #
+    # A versão anterior chamava bpy.ops.ed.undo_push() a cada
+    # ponto confirmado, de DENTRO do modal. Isso derrubou o
+    # Blender: o crash veio em
+    # collection_parents_rebuild_recursive, decodificando um
+    # passo de undo. Empurrar passo de undo de dentro de um
+    # operator modal em execução não é suportado -- o estado do
+    # modal não faz parte do snapshot, e aqui ainda por cima
+    # havia mudança de coleção na mesma janela.
+    #
+    # O que se perde: Ctrl+Z depois da ferramenta desfaz o
+    # Landmarking inteiro de uma vez, não ponto a ponto. O que
+    # não se perde: DENTRO da ferramenta, Ctrl+Z/Backspace
+    # continua voltando um ponto por vez (step_back), que é o que
+    # o usuário realmente pedia -- e isso não depende do sistema
+    # de undo do Blender.
+    #
+
+    bl_options = {'REGISTER', 'UNDO'}
+
     POINT_NAMES = [
         "ForeheadTop",
         "LeftEye_Top",
@@ -326,22 +349,20 @@ class OPERATOR_create_critical_points(bpy.types.Operator):
     def confirm_point(self):
 
         #
-        # Operator modal não registra passo de undo sozinho. Sem
-        # este push, um Ctrl+Z depois do Landmarking voltava pra
-        # ANTES dele inteiro: os Empties sumiam da cena e
-        # session.critical_points ficava só com referência morta --
-        # é essa a origem do erro "Faltam pontos obrigatórios no
-        # lado do usuário" no Apply Mesh. Com um push por ponto, o
-        # Ctrl+Z desfaz ponto a ponto.
+        # Confirma o ponto atual: sai de "em andamento" e entra no
+        # histórico, que é o que step_back() consome.
+        #
+        # Não empurra passo de undo -- ver o comentário em
+        # bl_options no topo da classe. O erro "Faltam pontos
+        # obrigatórios no lado do usuário" que motivou aquele push
+        # já está resolvido pelo outro lado: o Apply Mesh relê os
+        # critical points da CENA (a coleção é a fonte da
+        # verdade), então referência morta deixou de importar.
         #
 
         self.history.append((self.index, list(self.current_points)))
 
         self.current_points = []
-
-        bpy.ops.ed.undo_push(
-            message=f"Landmark: {self.POINT_NAMES[self.index]}"
-        )
 
     # -----------------------------------------------------------
 

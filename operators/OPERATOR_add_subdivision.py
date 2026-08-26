@@ -23,7 +23,15 @@ class OPERATOR_add_subdivision(bpy.types.Operator):
 
     def execute(self, context):
 
-        if session.template is None or not is_valid(session.template.mesh):
+        #
+        # resolve_template_mesh() em vez de session.template.mesh:
+        # a referência morre num Ctrl+Z e o botão passaria a
+        # recusar rodar com a malha visivelmente na cena.
+        #
+
+        mesh = session.resolve_template_mesh()
+
+        if not is_valid(mesh):
 
             self.report(
                 {'ERROR'},
@@ -32,7 +40,7 @@ class OPERATOR_add_subdivision(bpy.types.Operator):
 
             return {'CANCELLED'}
 
-        subdivision.add_or_get(session.template.mesh)
+        subdivision.add_or_get(mesh)
 
         self.report(
             {'INFO'},

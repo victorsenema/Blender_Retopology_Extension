@@ -39,7 +39,7 @@ def import_template():
     # saber depois de onde cada Empty veio.
     #
 
-    requested_names = []
+    requested_names = ()
 
     with bpy.data.libraries.load(template_path, link=False) as (data_from, data_to):
 
@@ -48,23 +48,39 @@ def import_template():
             STRUCTURE_COLLECTION_NAME,
         }
 
-        requested_names = [
+        #
+        # TUPLA, e a atribuição leva uma CÓPIA. Isso não é estilo,
+        # é obrigatório.
+        #
+        # Ao sair deste `with`, o Blender substitui os itens de
+        # data_to.collections IN PLACE pelos datablocks
+        # carregados -- na mesma lista que foi atribuída aqui.
+        # Atribuir `requested_names` direto significaria que
+        # `requested_names` para de conter strings e passa a
+        # conter Collections, sem aviso nenhum. Foi exatamente
+        # isso que aconteceu: o zip lá embaixo casava Collection
+        # com Collection, o dict ficava indexado por objeto em vez
+        # de nome, e o import morria com "Template mesh not
+        # found" mesmo com o .blend intacto.
+        #
+
+        requested_names = tuple(
             name for name in data_from.collections
             if name in wanted
-        ]
+        )
 
-        data_to.collections = requested_names
+        data_to.collections = list(requested_names)
 
     #
     # As coleções carregadas vêm NA MESMA ORDEM dos nomes pedidos,
     # e é por essa ordem que elas são identificadas aqui.
     #
-    # Antes este dict era montado com {collection.name: collection}
-    # e consultado por MESH_COLLECTION_NAME -- o que quebrava na
-    # SEGUNDA rodada dentro do mesmo arquivo: já existindo uma
-    # "Template_Mesh" na cena, o Blender nomeia a recém-importada
-    # como "Template_Mesh.001", a busca por "Template_Mesh" não
-    # achava nada, e o import morria com "Template mesh not found".
+    # Não dá pra montar este dict com {collection.name: collection}
+    # e consultar por MESH_COLLECTION_NAME: na SEGUNDA rodada
+    # dentro do mesmo arquivo, com uma "Template_Mesh" já
+    # existindo, o Blender nomeia a recém-importada como
+    # "Template_Mesh.001" e a busca pelo nome original não acha
+    # nada.
     #
 
     imported_collections = {}
@@ -73,6 +89,11 @@ def import_template():
 
         if collection is not None:
             imported_collections[original_name] = collection
+
+    print(
+        f"[Template] coleções importadas: "
+        f"{ {name: collection.name for name, collection in imported_collections.items()} }"
+    )
 
     #
     # Tudo do addon mora debaixo da raiz "Retopology" (ver
@@ -116,7 +137,21 @@ def import_template():
 
     if template.mesh is None:
 
-        raise RuntimeError("Template mesh not found.")
+        #
+        # Mensagem com contexto suficiente pra diagnosticar sem
+        # abrir o .blend: qual arquivo, o que foi pedido, e o que
+        # de fato veio. A versão anterior dizia só "Template mesh
+        # not found", que não distingue ".blend sem a coleção" de
+        # "bug no código de import".
+        #
+
+        raise RuntimeError(
+            f"Template mesh not found. Arquivo: {template_path}. "
+            f"Coleções pedidas: {list(requested_names)}. "
+            f"Coleções carregadas: {sorted(imported_collections)}. "
+            f"Esperado: uma coleção '{MESH_COLLECTION_NAME}' com pelo "
+            f"menos um objeto do tipo MESH dentro."
+        )
 
     #
     # Critical Points

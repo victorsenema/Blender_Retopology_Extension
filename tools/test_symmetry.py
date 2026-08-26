@@ -292,6 +292,220 @@ check(
     ),
 )
 
+print("transform_direction")
+
+#
+# Direcao ignora a translacao da matriz; posicao nao. Se os dois
+# dessem o mesmo resultado, o deslocamento do lado espelhado
+# sairia com um offset fantasma do tamanho da translacao do alvo.
+#
+
+check(
+    "direcao ignora a translacao da matriz",
+    close(
+        sym.transform_direction(rotated(), (1.0, 0.0, 0.0)),
+        (0.0, 1.0, 0.0),
+    ),
+    sym.transform_direction(rotated(), (1.0, 0.0, 0.0)),
+)
+check(
+    "posicao NAO ignora a translacao (contraste)",
+    not close(
+        sym.transform(rotated(), (1.0, 0.0, 0.0)),
+        sym.transform_direction(rotated(), (1.0, 0.0, 0.0)),
+    ),
+)
+
+print("mirror_world_direction")
+
+#
+# Deslocamento no eixo local X: o lado espelhado tem que receber o
+# oposto. Com o objeto girado 90 graus em Z, o X local e o Y do
+# mundo.
+#
+
+check(
+    "deslocamento no eixo espelhado inverte",
+    close(
+        sym.mirror_world_direction(
+            rotated(), rotated_inverse(), (0.0, 1.0, 0.0), "X"
+        ),
+        (0.0, -1.0, 0.0),
+    ),
+    sym.mirror_world_direction(
+        rotated(), rotated_inverse(), (0.0, 1.0, 0.0), "X"
+    ),
+)
+check(
+    "deslocamento paralelo ao plano nao muda",
+    close(
+        sym.mirror_world_direction(
+            rotated(), rotated_inverse(), (1.0, 0.0, 2.0), "X"
+        ),
+        (1.0, 0.0, 2.0),
+    ),
+    sym.mirror_world_direction(
+        rotated(), rotated_inverse(), (1.0, 0.0, 2.0), "X"
+    ),
+)
+check(
+    "espelhar a direcao duas vezes volta ao original",
+    close(
+        sym.mirror_world_direction(
+            rotated(),
+            rotated_inverse(),
+            sym.mirror_world_direction(
+                rotated(), rotated_inverse(), (3.0, -2.0, 1.0), "X"
+            ),
+            "X",
+        ),
+        (3.0, -2.0, 1.0),
+    ),
+)
+
+#
+# A propriedade da qual o Nudge depende: um vertice em cima do
+# plano recebe a contribuicao direta MAIS a espelhada, e a soma
+# tem que ficar dentro do plano -- e assim que o ponto do meio da
+# face desliza no plano em vez de sair dele, sem nenhum caso
+# especial no codigo.
+#
+
+drag = (0.7, 1.3, -0.4)
+mirrored_drag = sym.mirror_world_direction(
+    rotated(), rotated_inverse(), drag, "X"
+)
+total = tuple(a + b for a, b in zip(drag, mirrored_drag))
+
+check(
+    "direto + espelhado cancela a componente perpendicular ao plano",
+    abs(sym.transform_direction(rotated_inverse(), total)[0]) < 1e-9,
+    sym.transform_direction(rotated_inverse(), total),
+)
+
+print("build_mirror_map")
+
+#
+# Nuvem simetrica em torno do X local do objeto girado. Local
+# (x, y, z) -> mundo via rotated(). Pares: (+1,*) com (-1,*).
+#
+
+def to_world(local):
+    return sym.transform(rotated(), local)
+
+
+pairs_local = [
+    (1.0, 0.0, 0.0),    # 0  <-> 1
+    (-1.0, 0.0, 0.0),   # 1
+    (2.5, 1.0, 0.5),    # 2  <-> 3
+    (-2.5, 1.0, 0.5),   # 3
+    (0.0, 3.0, 1.0),    # 4  em cima do plano -> ele mesmo
+]
+
+positions = [to_world(local) for local in pairs_local]
+
+mapping = sym.build_mirror_map(
+    positions, rotated(), rotated_inverse(), "X", 0.01
+)
+
+check("par simples encontrado nos dois sentidos",
+      mapping.get(0) == 1 and mapping.get(1) == 0, mapping)
+check("par deslocado encontrado nos dois sentidos",
+      mapping.get(2) == 3 and mapping.get(3) == 2, mapping)
+check("vertice no plano mapeia pra si mesmo",
+      mapping.get(4) == 4, mapping)
+check("todo vertice tem par nesta nuvem simetrica",
+      len(mapping) == len(positions), len(mapping))
+
+#
+# Vertice sem contraparte (assimetria de verdade) nao pode ganhar
+# um par errado so porque tinha alguem "mais ou menos" perto.
+#
+
+positions_odd = positions + [to_world((4.0, 4.0, 4.0))]
+
+mapping_odd = sym.build_mirror_map(
+    positions_odd, rotated(), rotated_inverse(), "X", 0.01
+)
+
+check(
+    "vertice sem contraparte fica sem par",
+    5 not in mapping_odd,
+    mapping_odd.get(5),
+)
+check(
+    "os pares que existiam continuam corretos",
+    mapping_odd.get(0) == 1 and mapping_odd.get(4) == 4,
+)
+
+#
+# Tolerancia: com uma malha levemente assimetrica, o par so deve
+# aparecer se a folga permitir.
+#
+
+positions_loose = [
+    to_world((1.0, 0.0, 0.0)),
+    to_world((-1.0 + 0.05, 0.0, 0.0)),
+]
+
+check(
+    "tolerancia apertada rejeita o par quase-simetrico",
+    not sym.build_mirror_map(
+        positions_loose, rotated(), rotated_inverse(), "X", 0.01
+    ),
+)
+check(
+    "tolerancia folgada aceita o par quase-simetrico",
+    sym.build_mirror_map(
+        positions_loose, rotated(), rotated_inverse(), "X", 0.2
+    ).get(0) == 1,
+)
+check(
+    "tolerancia zero devolve mapa vazio",
+    sym.build_mirror_map(
+        positions, rotated(), rotated_inverse(), "X", 0.0
+    ) == {},
+)
+
+#
+# A grade espacial e uma otimizacao: o resultado tem que ser
+# identico ao da forca bruta. Uma nuvem maior, com os vertices
+# caindo em celulas diferentes, e onde um erro de indexacao da
+# grade apareceria.
+#
+
+import random
+
+random.seed(7)
+
+many_local = []
+for _ in range(400):
+    x = random.uniform(0.2, 5.0)
+    y = random.uniform(-5.0, 5.0)
+    z = random.uniform(-5.0, 5.0)
+    many_local.append((x, y, z))
+    many_local.append((-x, y, z))
+
+many = [to_world(local) for local in many_local]
+
+mapping_many = sym.build_mirror_map(
+    many, rotated(), rotated_inverse(), "X", 0.01
+)
+
+check(
+    f"nuvem de {len(many)} pontos: todos pareados",
+    len(mapping_many) == len(many),
+    len(mapping_many),
+)
+check(
+    "pareamento e sempre reciproco",
+    all(mapping_many.get(v) == k for k, v in mapping_many.items()),
+)
+check(
+    "ninguem e par de si mesmo fora do plano",
+    all(k != v for k, v in mapping_many.items()),
+)
+
 print()
 if failures:
     print(f"{len(failures)} FALHA(S): {failures}")

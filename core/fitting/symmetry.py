@@ -22,6 +22,8 @@
 # tools/test_symmetry.py.
 #
 
+import math
+
 
 #
 # Pares esquerda/direita, escritos na mão em vez de deduzidos por
@@ -168,6 +170,156 @@ def transform(matrix, point):
         matrix[2][0] * x + matrix[2][1] * y +
         matrix[2][2] * z + matrix[2][3],
     )
+
+
+def transform_direction(matrix, vector):
+
+    #
+    # Igual transform(), mas tratando o argumento como DIREÇÃO
+    # (w=0): ignora a coluna de translação da matriz.
+    #
+    # Distinção que importa: refletir uma POSIÇÃO leva em conta
+    # onde o plano está; refletir um DESLOCAMENTO, não -- um
+    # deslocamento não tem lugar no espaço, só direção e
+    # tamanho.
+    #
+
+    x, y, z = vector
+
+    return (
+        matrix[0][0] * x + matrix[0][1] * y + matrix[0][2] * z,
+        matrix[1][0] * x + matrix[1][1] * y + matrix[1][2] * z,
+        matrix[2][0] * x + matrix[2][1] * y + matrix[2][2] * z,
+    )
+
+
+def mirror_world_direction(matrix_world, matrix_world_inv, direction, axis):
+
+    #
+    # Reflexão de um deslocamento. É o que o lado espelhado da
+    # malha recebe quando o usuário arrasta um vértice: se o de
+    # cá vai pra direita, o de lá vai pra esquerda.
+    #
+
+    local = list(transform_direction(matrix_world_inv, direction))
+
+    index = AXIS_INDEX[axis]
+
+    local[index] = -local[index]
+
+    return transform_direction(matrix_world, local)
+
+
+def _cell_key(position, cell_size):
+
+    return (
+        int(math.floor(position[0] / cell_size)),
+        int(math.floor(position[1] / cell_size)),
+        int(math.floor(position[2] / cell_size)),
+    )
+
+
+def _distance_squared(a, b):
+
+    dx = a[0] - b[0]
+    dy = a[1] - b[1]
+    dz = a[2] - b[2]
+
+    return dx * dx + dy * dy + dz * dz
+
+
+def build_mirror_map(
+    positions,
+    matrix_world,
+    matrix_world_inv,
+    axis,
+    tolerance
+):
+
+    #
+    # Para cada vértice, o índice do vértice do outro lado --
+    # {índice: índice_espelhado}.
+    #
+    # Os critical points casam por NOME (ver MIRROR_PAIRS); os
+    # vértices da malha não têm nome, então o par tem que sair da
+    # geometria: reflete a posição do vértice no plano de simetria
+    # e procura quem está lá.
+    #
+    # A busca usa uma grade espacial (dicionário de células), não
+    # força bruta: força bruta seria O(V²) e a malha do template
+    # tem milhares de vértices. Cada consulta olha as 27 células
+    # vizinhas, o que cobre qualquer candidato dentro da
+    # tolerância desde que a célula tenha o dobro dela.
+    #
+    # Vértice em cima do plano mapeia PRA SI MESMO. Isso é
+    # proposital e o chamador depende disso: somando a
+    # contribuição direta com a espelhada, a componente
+    # perpendicular ao plano se cancela sozinha e o vértice do
+    # meio da face desliza no plano em vez de sair dele.
+    #
+    # `positions` são posições de MUNDO, indexadas por vértice.
+    #
+
+    if tolerance <= 0.0 or not positions:
+        return {}
+
+    cell_size = tolerance * 2.0
+
+    grid = {}
+
+    for index, position in enumerate(positions):
+
+        grid.setdefault(_cell_key(position, cell_size), []).append(index)
+
+    mapping = {}
+
+    tolerance_squared = tolerance * tolerance
+
+    for index, position in enumerate(positions):
+
+        target = mirror_world_position(
+            matrix_world,
+            matrix_world_inv,
+            position,
+            axis
+        )
+
+        cell_x, cell_y, cell_z = _cell_key(target, cell_size)
+
+        best = None
+        best_distance = tolerance_squared
+
+        for offset_x in (-1, 0, 1):
+            for offset_y in (-1, 0, 1):
+                for offset_z in (-1, 0, 1):
+
+                    bucket = grid.get(
+                        (
+                            cell_x + offset_x,
+                            cell_y + offset_y,
+                            cell_z + offset_z,
+                        )
+                    )
+
+                    if not bucket:
+                        continue
+
+                    for candidate in bucket:
+
+                        distance = _distance_squared(
+                            positions[candidate],
+                            target
+                        )
+
+                        if distance < best_distance:
+
+                            best_distance = distance
+                            best = candidate
+
+        if best is not None:
+            mapping[index] = best
+
+    return mapping
 
 
 def mirror_world_position(matrix_world, matrix_world_inv, world_co, axis):

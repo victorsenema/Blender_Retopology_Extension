@@ -300,27 +300,21 @@ def build_adjacency(mesh_obj):
     return adjacency
 
 
-def compute_geodesic_distances(
-    mesh_obj,
-    adjacency,
-    seed_index,
-    max_distance
-):
+def world_coordinates(mesh_obj):
 
     #
-    # Dijkstra limitado a partir do vértice arrastado: distância
-    # ANDANDO PELA MALHA (soma dos comprimentos de aresta), não
-    # distância em linha reta. É o que evita que arrastar a asa
-    # do nariz puxe junto a parede de dentro da narina, que está
-    # pertinho em linha reta mas longe pela superfície.
+    # Posições de MUNDO de todos os vértices da malha base, num
+    # array plano [x0, y0, z0, x1, y1, z1, ...].
     #
-    # Distâncias em ESPAÇO DE MUNDO, não local: o Alignment
-    # multiplica a matrix_world do template por uma escala não
-    # uniforme (ver core/fitting/alignment.apply_alignment), então
-    # 1 unidade local não vale 1 unidade de mundo, nem vale a
-    # mesma coisa nos 3 eixos. Como o raio é um número que o
-    # usuário lê e edita no painel (em metros/unidades de cena),
-    # ele precisa significar a mesma coisa em qualquer modelo.
+    # Mundo, e não local: o template carrega escala não uniforme
+    # na matrix_world vinda do Alignment, então 1 unidade local
+    # não vale 1 unidade de cena nem vale a mesma coisa nos 3
+    # eixos -- distância e tolerância medidas em local sairiam
+    # deformadas.
+    #
+    # foreach_get() puxa o array de uma vez do lado C; a
+    # multiplicação pela matriz é feita na mão, componente a
+    # componente, pra não criar milhares de objetos Vector.
     #
 
     mesh = mesh_obj.data
@@ -357,6 +351,94 @@ def compute_geodesic_distances(
             world[2][0] * x + world[2][1] * y +
             world[2][2] * z + world[2][3]
         )
+
+    return coordinates
+
+
+def world_positions(mesh_obj):
+
+    #
+    # O mesmo que world_coordinates(), em tuplas (x, y, z)
+    # indexadas por vértice -- formato que
+    # symmetry.build_mirror_map() consome.
+    #
+
+    coordinates = world_coordinates(mesh_obj)
+
+    return [
+        (
+            coordinates[index * 3],
+            coordinates[index * 3 + 1],
+            coordinates[index * 3 + 2],
+        )
+        for index in range(len(coordinates) // 3)
+    ]
+
+
+def mean_edge_length(mesh_obj):
+
+    #
+    # Comprimento médio de aresta, em unidades de mundo. Serve de
+    # escala natural pra tolerâncias que dependem do espaçamento
+    # da malha -- em especial a do pareamento de vértices
+    # espelhados (ver symmetry.build_mirror_map): um número fixo
+    # ali seria grosso demais numa malha densa e apertado demais
+    # numa esparsa.
+    #
+
+    mesh = mesh_obj.data
+
+    edge_count = len(mesh.edges)
+
+    if edge_count == 0:
+        return 0.0
+
+    edge_vertices = [0] * (edge_count * 2)
+
+    mesh.edges.foreach_get("vertices", edge_vertices)
+
+    coordinates = world_coordinates(mesh_obj)
+
+    total = 0.0
+
+    for edge_index in range(edge_count):
+
+        a = edge_vertices[edge_index * 2] * 3
+        b = edge_vertices[edge_index * 2 + 1] * 3
+
+        dx = coordinates[a] - coordinates[b]
+        dy = coordinates[a + 1] - coordinates[b + 1]
+        dz = coordinates[a + 2] - coordinates[b + 2]
+
+        total += math.sqrt(dx * dx + dy * dy + dz * dz)
+
+    return total / edge_count
+
+
+def compute_geodesic_distances(
+    mesh_obj,
+    adjacency,
+    seed_index,
+    max_distance
+):
+
+    #
+    # Dijkstra limitado a partir do vértice arrastado: distância
+    # ANDANDO PELA MALHA (soma dos comprimentos de aresta), não
+    # distância em linha reta. É o que evita que arrastar a asa
+    # do nariz puxe junto a parede de dentro da narina, que está
+    # pertinho em linha reta mas longe pela superfície.
+    #
+    # Distâncias em ESPAÇO DE MUNDO, não local: o Alignment
+    # multiplica a matrix_world do template por uma escala não
+    # uniforme (ver core/fitting/alignment.apply_alignment), então
+    # 1 unidade local não vale 1 unidade de mundo, nem vale a
+    # mesma coisa nos 3 eixos. Como o raio é um número que o
+    # usuário lê e edita no painel (em metros/unidades de cena),
+    # ele precisa significar a mesma coisa em qualquer modelo.
+    #
+
+    coordinates = world_coordinates(mesh_obj)
 
     distances = {seed_index: 0.0}
 
