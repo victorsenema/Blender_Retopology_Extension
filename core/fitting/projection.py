@@ -103,8 +103,6 @@ class SurfaceProjection:
 
     def __init__(self, session):
 
-        self.session = session
-
         self.template = session.template.mesh
         self.target = session.target_mesh
 

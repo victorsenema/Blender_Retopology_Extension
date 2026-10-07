@@ -379,7 +379,7 @@ class OPERATOR_nudge_vertex(bpy.types.Operator):
 
             if event.type == 'LEFTMOUSE' and event.value == 'RELEASE':
 
-                self.end_drag(context)
+                self.end_drag()
 
                 context.area.tag_redraw()
 
@@ -387,7 +387,7 @@ class OPERATOR_nudge_vertex(bpy.types.Operator):
 
             if event.type in {'RIGHTMOUSE', 'ESC'}:
 
-                self.cancel_drag(context)
+                self.cancel_drag()
 
                 context.area.tag_redraw()
 
@@ -1179,7 +1179,7 @@ class OPERATOR_nudge_vertex(bpy.types.Operator):
 
     # -----------------------------------------------------------
 
-    def end_drag(self, context):
+    def end_drag(self):
 
         #
         # Confirma o arraste. Sem undo_push aqui -- ver o
@@ -1347,7 +1347,7 @@ class OPERATOR_nudge_vertex(bpy.types.Operator):
 
     # -----------------------------------------------------------
 
-    def cancel_drag(self, context):
+    def cancel_drag(self):
 
         self.restore_originals()
 

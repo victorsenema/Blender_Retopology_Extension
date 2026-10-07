@@ -117,8 +117,6 @@ def import_template():
 
     template.objects = []
 
-    template.collections = list(imported_collections.values())
-
     #
     # Malha
     #

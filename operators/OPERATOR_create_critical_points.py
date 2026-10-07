@@ -177,7 +177,7 @@ class OPERATOR_create_critical_points(bpy.types.Operator):
 
         self.index = 0
 
-        self.create_empty(context)
+        self.create_empty()
         self.update_empty_position(context, event)
 
         context.area.header_text_set(self.build_header())
@@ -293,7 +293,7 @@ class OPERATOR_create_critical_points(bpy.types.Operator):
 
                 return self.finish(context, {'FINISHED'})
 
-            self.create_empty(context)
+            self.create_empty()
             self.update_empty_position(context, event)
 
             context.area.header_text_set(self.build_header())
@@ -393,7 +393,7 @@ class OPERATOR_create_critical_points(bpy.types.Operator):
 
         self.index = previous_index
 
-        self.create_empty(context)
+        self.create_empty()
         self.update_empty_position(context, event)
 
         context.area.header_text_set(self.build_header())
@@ -466,7 +466,7 @@ class OPERATOR_create_critical_points(bpy.types.Operator):
 
     # -----------------------------------------------------------
 
-    def new_empty(self, context, name):
+    def new_empty(self, name):
 
         empty = bpy.data.objects.new(name, None)
 
@@ -488,13 +488,13 @@ class OPERATOR_create_critical_points(bpy.types.Operator):
 
     # -----------------------------------------------------------
 
-    def create_empty(self, context):
+    def create_empty(self):
 
         name = self.POINT_NAMES[self.index]
 
         self.current_points = []
 
-        self.empty = self.new_empty(context, name)
+        self.empty = self.new_empty(name)
 
         self.mirror_empty = None
 
@@ -515,7 +515,7 @@ class OPERATOR_create_critical_points(bpy.types.Operator):
         # confirmar o clique.
         #
 
-        self.mirror_empty = self.new_empty(context, mirror_name)
+        self.mirror_empty = self.new_empty(mirror_name)
 
     # -----------------------------------------------------------
 

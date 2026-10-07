@@ -2,14 +2,10 @@ import bpy
 
 from ..template_manager import import_template
 from ..blender_utils import is_valid
-from .. import scene_collections
 
 from .alignment import Alignment
 from .structure_warp import StructureWarp
 from .projection import SurfaceProjection
-
-
-ENABLE_SURFACE_PROJECTION = True
 
 
 class Fitting:
@@ -24,19 +20,9 @@ class Fitting:
     # operators/OPERATOR_apply_modifiers.py.
     #
 
-    def __init__(self, session, exclude_points=None):
+    def __init__(self, session):
 
         self.session = session
-
-        #
-        # Repassado pro StructureWarp -- nomes normalizados de
-        # critical points a IGNORAR na correspondência do TPS.
-        # Usado pelos botões de teste (ver
-        # operators/OPERATOR_test_inside_nose*.py); None/vazio =
-        # usa todos os pontos posicionados, comportamento normal.
-        #
-
-        self.exclude_points = exclude_points
 
     def execute(self):
 
@@ -81,10 +67,7 @@ class Fitting:
             # cada landmark. Ver core/fitting/tps.py.
             #
 
-            structure_warp = StructureWarp(
-                self.session,
-                exclude_points=self.exclude_points
-            )
+            structure_warp = StructureWarp(self.session)
 
             structure_warp.execute()
 
@@ -95,16 +78,7 @@ class Fitting:
             # vivo -- não é aplicado aqui.
             #
 
-            if ENABLE_SURFACE_PROJECTION:
-
-                self.add_surface_projection()
-
-            else:
-
-                print(
-                    "\n[INFO] Projeção de superfície desativada "
-                    "(ENABLE_SURFACE_PROJECTION = False)."
-                )
+            self.add_surface_projection()
 
             #
             # 4
