@@ -243,6 +243,19 @@ def _draw_falloff(shader):
 
 def _draw():
 
+    #
+    # O toggle do painel manda. getattr com default True pra
+    # degradar bem se a property ainda não estiver registrada
+    # (durante o próprio register do addon, por exemplo).
+    #
+
+    scene = getattr(bpy.context, "scene", None)
+
+    if scene is not None:
+
+        if not getattr(scene, "retopo_show_control_points", True):
+            return
+
     mesh_obj = session.resolve_template_mesh()
 
     if not is_valid(mesh_obj):

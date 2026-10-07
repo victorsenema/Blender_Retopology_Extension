@@ -6,7 +6,7 @@ def apply_all_modifiers(mesh_obj):
 
     #
     # Finaliza TUDO que estiver no modifier stack (Subdivision,
-    # Shrinkwrap, Relax, ou qualquer outro) de uma vez: avalia
+    # Shrinkwrap, ou qualquer outro) de uma vez: avalia
     # via depsgraph e substitui o CONTEÚDO do mesh.data original
     # pelo resultado avaliado inteiro (vértices, faces, UVs).
     #

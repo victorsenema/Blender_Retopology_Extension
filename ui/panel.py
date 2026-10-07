@@ -4,6 +4,7 @@ from ..core import session
 from ..core.blender_utils import is_valid
 from ..core.fitting.modifier_stack import (
     SHRINKWRAP_MODIFIER_NAME,
+    SHRINKWRAP_POST_MODIFIER_NAME,
     SUBDIVISION_MODIFIER_NAME,
 )
 from ..core.fitting.symmetry import points_to_place, total_points
@@ -28,6 +29,22 @@ class RETOPOLOGY_PT_panel(bpy.types.Panel):
             "retopo_target",
             text=""
         )
+
+        #
+        # Sem Target, NADA do addon funciona: ele é a superfície
+        # que o Shrinkwrap persegue, o plano de simetria e o alvo
+        # do snap do ajuste fino. Antes, o usuário só descobria
+        # isso ao clicar em Apply Mesh e tomar um erro. O aviso
+        # aparece logo abaixo do conta-gotas, que é onde ele
+        # resolve o problema.
+        #
+
+        if context.scene.retopo_target is None:
+
+            box = layout.box()
+
+            box.label(text="Select the target mesh", icon='ERROR')
+            box.label(text="Use the eyedropper above.")
 
         layout.separator()
 
@@ -58,16 +75,8 @@ class RETOPOLOGY_PT_panel(bpy.types.Panel):
         layout.separator()
 
         #
-        # Ordem no painel espelha a ordem no modifier stack:
-        # Subdivision -> Shrinkwrap (acima) -> Relax.
-        #
-        # OBS.: o botão/slider de Relax foi escondido do painel a
-        # pedido (só visualmente -- core/fitting/relax.py e
-        # operators/OPERATOR_relax_mesh.py continuam intactos,
-        # registrados, e utilizáveis via busca de operator/F3).
-        # Perguntar ao usuário o que fazer com o relaxamento
-        # (trazer de volta pro painel, mudar de abordagem, ou
-        # remover de vez) numa próxima sessão.
+        # A ordem no painel espelha a ordem no modifier stack:
+        # Shrinkwrap -> Subdivision -> Shrinkwrap (pós).
         #
 
         layout.label(text="Subdivision")
@@ -111,7 +120,7 @@ class RETOPOLOGY_PT_panel(bpy.types.Panel):
 
         row.operator(
             "retopo.reset_scene",
-            text="Reset (limpar cena)",
+            text="Reset (clear scene)",
             icon='TRASH'
         )
 
@@ -133,7 +142,7 @@ class RETOPOLOGY_PT_panel(bpy.types.Panel):
 
         scene = context.scene
 
-        layout.prop(scene, "retopo_symmetric", text="Objeto Espelhado")
+        layout.prop(scene, "retopo_symmetric", text="Mirrored Object")
 
         if not scene.retopo_symmetric:
             return
@@ -146,8 +155,8 @@ class RETOPOLOGY_PT_panel(bpy.types.Panel):
 
             box = layout.box()
 
-            box.label(text="Escolha o Target antes:", icon='ERROR')
-            box.label(text="o plano vem do objeto alvo.")
+            box.label(text="Target required", icon='ERROR')
+            box.label(text="Mirror plane comes from it.")
 
             return
 
@@ -172,6 +181,18 @@ class RETOPOLOGY_PT_panel(bpy.types.Panel):
         #
 
         layout.label(text="Fine-Tuning")
+
+        #
+        # Fica FORA da coluna desabilitada logo abaixo: o usuário
+        # tem que conseguir apagar os pontos de qualquer jeito,
+        # inclusive num estado em que o resto da seção está cinza.
+        #
+
+        layout.prop(
+            context.scene,
+            "retopo_show_control_points",
+            text="Show Control Points"
+        )
 
         template_mesh = self.get_template_mesh()
 
@@ -234,16 +255,31 @@ class RETOPOLOGY_PT_panel(bpy.types.Panel):
         # produz o mesmo resultado.
         #
 
-        shrinkwrap = self.get_modifier(SHRINKWRAP_MODIFIER_NAME)
+        #
+        # Um toggle por Shrinkwrap existente. O segundo só aparece
+        # depois que a Subdivision é adicionada, porque é ela quem
+        # o cria (ver core/fitting/subdivision.py).
+        #
 
-        if shrinkwrap is not None:
+        row = None
 
-            row = column.row(align=True)
+        for name, label in (
+            (SHRINKWRAP_MODIFIER_NAME, "Shrinkwrap"),
+            (SHRINKWRAP_POST_MODIFIER_NAME, "Pós-Subdiv"),
+        ):
+
+            modifier = self.get_modifier(name)
+
+            if modifier is None:
+                continue
+
+            if row is None:
+                row = column.row(align=True)
 
             row.prop(
-                shrinkwrap,
+                modifier,
                 "show_viewport",
-                text="Shrinkwrap ativo",
+                text=label,
                 toggle=True
             )
 
@@ -281,8 +317,8 @@ class RETOPOLOGY_PT_panel(bpy.types.Panel):
 
             box = layout.box()
 
-            box.label(text="Subdivision ativa:", icon='INFO')
-            box.label(text="pontos na posicao da malha base.")
+            box.label(text="Subdivision active:", icon='INFO')
+            box.label(text="points shown on base mesh.")
 
     # -----------------------------------------------------------
 

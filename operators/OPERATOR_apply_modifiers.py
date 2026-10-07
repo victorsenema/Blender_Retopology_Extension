@@ -9,8 +9,8 @@ class OPERATOR_apply_modifiers(bpy.types.Operator):
 
     #
     # Passo final: finaliza TODOS os modifiers na malha (o
-    # Shrinkwrap de "Apply Mesh", a Subdivision de "Add
-    # Subdivision" e o Relax de "Relax Mesh" se estiver ativo --
+    # Shrinkwrap de "Apply Mesh" e a Subdivision de "Add
+    # Subdivision", com o segundo Shrinkwrap que vem junto dela --
     # ver core/fitting/finalize.py). Os critical points já não
     # existem mais nesse ponto -- Apply Mesh (Fitting.execute) já
     # os removeu da cena assim que terminou o warp TPS, ver
@@ -50,9 +50,22 @@ class OPERATOR_apply_modifiers(bpy.types.Operator):
 
         else:
 
+            #
+            # Fim do pipeline: os vertex groups de controle
+            # sobrevivem ao bake (vivem no objeto, e as pesagens
+            # viajam no bmesh), então sem isto os pontos ficariam
+            # desenhados pra sempre numa malha que já está pronta.
+            #
+            # Desliga o toggle em vez de apagar os grupos: é
+            # reversível, e não destrói dado que o usuário pode
+            # querer pra um rig depois.
+            #
+
+            context.scene.retopo_show_control_points = False
+
             self.report(
                 {'INFO'},
-                "Modifiers aplicados."
+                "Modifiers aplicados. Pontos de controle ocultados."
             )
 
         return {'FINISHED'}

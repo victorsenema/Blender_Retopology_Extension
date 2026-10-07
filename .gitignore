@@ -36,6 +36,15 @@ test_models/*
 
 
 #
+# PDFs -- artigos, referências e material de leitura que ficam na
+# pasta do projeto por conveniência. Não são fonte de nada nem
+# entram na distribuição do addon.
+#
+
+*.pdf
+
+
+#
 # Notas de trabalho (Notes.txt / Pipeline.txt).
 #
 # Ficam no disco e continuam sendo mantidas -- são a memória do

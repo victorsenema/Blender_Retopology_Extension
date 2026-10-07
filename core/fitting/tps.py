@@ -8,7 +8,7 @@ class ThinPlateSpline:
     # conjunto pequeno de pontos de controle (landmarks).
     #
     # Somar translações ponderadas por Gaussianas locais (cada
-    # uma "puxando" pro seu lado, sem noção do que as outras
+    # uma "puxando" pro seu lado, sem noçdão o que as outras
     # estão fazendo) facilmente dobra/cruza a malha nas regiões
     # entre landmarks distantes.
     #

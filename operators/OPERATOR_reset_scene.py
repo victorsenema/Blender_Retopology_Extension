@@ -34,12 +34,12 @@ class OPERATOR_reset_scene(bpy.types.Operator):
     #
 
     bl_idname = "retopo.reset_scene"
-    bl_label = "Remover os objetos do Retopology?"
+    bl_label = "Remove all Retopology objects?"
     bl_description = (
-        "Remove da cena os critical points e a malha do template "
-        "(tudo dentro da coleção 'Retopology'). Use antes de rodar o "
-        "addon de novo no mesmo arquivo. Pra manter uma cabeça já "
-        "finalizada, mova ela pra fora dessa coleção antes"
+        "Removes the critical points and the template mesh from the "
+        "scene (everything inside the 'Retopology' collection). Use "
+        "it before running the addon again in the same file. To keep "
+        "a finished head, move it out of that collection first"
     )
 
     bl_options = {'REGISTER', 'UNDO'}
@@ -75,9 +75,7 @@ class OPERATOR_reset_scene(bpy.types.Operator):
         # referência apontando pra objeto que não existe mais.
         #
 
-        session.critical_points.clear()
-        session.template = None
-        session.target_mesh = None
+        session.reset()
 
         vertex_highlight.mark_dirty()
         vertex_highlight.mark_groups_dirty()

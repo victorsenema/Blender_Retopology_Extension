@@ -1,13 +1,14 @@
 import bpy
+from bpy.app.handlers import persistent
 
 from .operators.OPERATOR_create_critical_points import OPERATOR_create_critical_points
 from .operators.OPERATOR_test_inside_nose_and_nostrils import OPERATOR_test_inside_nose_and_nostrils
 from .operators.OPERATOR_add_subdivision import OPERATOR_add_subdivision
-from .operators.OPERATOR_relax_mesh import OPERATOR_relax_mesh
 from .operators.OPERATOR_apply_modifiers import OPERATOR_apply_modifiers
 from .operators.OPERATOR_nudge_vertex import OPERATOR_nudge_vertex
 from .operators.OPERATOR_reset_scene import OPERATOR_reset_scene
 
+from .core import session
 from .core.fitting import symmetry_link
 from .ui.panel import RETOPOLOGY_PT_panel
 from .ui import vertex_highlight
@@ -28,12 +29,36 @@ classes = (
     OPERATOR_create_critical_points,
     OPERATOR_test_inside_nose_and_nostrils,
     OPERATOR_add_subdivision,
-    OPERATOR_relax_mesh,
     OPERATOR_apply_modifiers,
     OPERATOR_nudge_vertex,
     OPERATOR_reset_scene,
     RETOPOLOGY_PT_panel,
 )
+
+
+@persistent
+def _on_load_post(*args):
+
+    #
+    # Abrir um arquivo .blend não reinicia o Python: o estado em
+    # core/session.py atravessa a troca inteira. Sem zerar aqui,
+    # o addon continua achando que existe um template da sessão
+    # anterior -- e como resolve_template_mesh() cai na busca
+    # POR NOME quando a referência morre, ele "reencontra" um
+    # objeto homônimo no arquivo novo e passa a desenhar os
+    # pontos de controle na malha errada.
+    #
+    # A assinatura é *args de propósito: o Blender já passou
+    # números diferentes de argumentos pros handlers de load em
+    # versões diferentes.
+    #
+
+    session.reset()
+
+    vertex_highlight.mark_dirty()
+    vertex_highlight.mark_groups_dirty()
+
+    symmetry_link.resume()
 
 
 def register():
@@ -66,11 +91,11 @@ def register():
     #
 
     bpy.types.Scene.retopo_symmetric = bpy.props.BoolProperty(
-        name="Objeto Espelhado",
+        name="Mirrored Object",
         description=(
-            "A cabeça alvo é simétrica. Clique só um lado: o ponto "
-            "do outro lado é criado junto, e os pontos do meio da "
-            "face ficam travados no plano de simetria"
+            "The target head is symmetric. Click only one side: the "
+            "matching point on the other side is created along with "
+            "it, and midline points are locked to the symmetry plane"
         ),
         default=False,
     )
@@ -126,6 +151,22 @@ def register():
         default=False,
     )
 
+    #
+    # Liga/desliga o destaque dos vértices de controle. Fica na
+    # Scene (e não como global do módulo) pra ser salva junto com
+    # o arquivo e aparecer no painel.
+    #
+
+    bpy.types.Scene.retopo_show_control_points = bpy.props.BoolProperty(
+        name="Show Control Points",
+        description=(
+            "Draws the vertices of the control vertex groups in the "
+            "viewport, the ones Nudge Vertex drags. Turned off "
+            "automatically by Apply Modifiers"
+        ),
+        default=True,
+    )
+
     vertex_highlight.register()
 
     #
@@ -138,13 +179,20 @@ def register():
 
     symmetry_link.register()
 
+    if _on_load_post not in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.append(_on_load_post)
+
 
 def unregister():
+
+    if _on_load_post in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(_on_load_post)
 
     symmetry_link.unregister()
 
     vertex_highlight.unregister()
 
+    del bpy.types.Scene.retopo_show_control_points
     del bpy.types.Scene.retopo_nudge_affect_control
     del bpy.types.Scene.retopo_nudge_radius
     del bpy.types.Scene.retopo_mirror_axis

@@ -40,11 +40,25 @@ class OPERATOR_add_subdivision(bpy.types.Operator):
 
             return {'CANCELLED'}
 
-        subdivision.add_or_get(mesh)
+        #
+        # O alvo vem do dropper do painel, que é a fonte oficial
+        # (session.target_mesh pode estar vazio depois de um
+        # reload). É ele que o Shrinkwrap pós-Subdivision precisa.
+        #
+
+        subdivision.add_or_get(mesh, target=context.scene.retopo_target)
 
         self.report(
             {'INFO'},
             "Subdivision ativada -- ajuste 'Subdivision Level'."
         )
+
+        if context.scene.retopo_target is None:
+
+            self.report(
+                {'WARNING'},
+                "Sem Target: a malha vai descolar nas partes convexas. "
+                "Escolha o Target e clique em Add Subdivision de novo."
+            )
 
         return {'FINISHED'}

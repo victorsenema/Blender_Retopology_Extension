@@ -26,6 +26,31 @@ template = None
 template_mesh_name = None
 
 
+def reset():
+
+    #
+    # Zera TODO o estado da sessão.
+    #
+    # Existe porque o estado daqui é de módulo: ele sobrevive a
+    # abrir outro arquivo .blend, e antes disso ninguém limpava
+    # template_mesh_name. O resultado era o destaque dos pontos
+    # de controle reaparecendo em cima da malha errada -- bastava
+    # o arquivo novo ter um objeto com o mesmo nome (o que é bem
+    # provável: "Template_Mesh" é o nome que o addon sempre usa).
+    #
+    # Chamado pelo handler de load_post (ver __init__.py) e pelo
+    # botão Reset.
+    #
+
+    global target_mesh, template, template_mesh_name
+
+    critical_points.clear()
+
+    target_mesh = None
+    template = None
+    template_mesh_name = None
+
+
 def resolve_template_mesh():
 
     #

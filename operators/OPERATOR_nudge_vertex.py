@@ -4,7 +4,7 @@ from mathutils import Vector
 
 from ..core import session
 from ..core.blender_utils import is_valid, normalize_point_name
-from ..core.fitting.modifier_stack import SHRINKWRAP_MODIFIER_NAME
+from ..core.fitting.modifier_stack import SHRINKWRAP_MODIFIER_NAMES
 from ..core.fitting.surface_snap import (
     SurfaceSnapper,
     bake_evaluated_positions,
@@ -202,8 +202,16 @@ class OPERATOR_nudge_vertex(bpy.types.Operator):
         self.adjacency = build_adjacency(self.mesh_obj)
 
         self.snapper = None
-        self.shrinkwrap = None
-        self.shrinkwrap_was_visible = False
+
+        #
+        # Lista de (modifier, estava_visivel) -- são dois
+        # Shrinkwraps desde que o segundo entrou pra recolar o
+        # resultado da Subdivision (ver
+        # core/fitting/modifier_stack.py). Os dois precisam sair
+        # do caminho durante o ajuste, e os dois voltam ao sair.
+        #
+
+        self.shrinkwraps = []
 
         self.setup_surface_snap(context)
 
@@ -510,9 +518,17 @@ class OPERATOR_nudge_vertex(bpy.types.Operator):
 
             return
 
-        modifier = self.mesh_obj.modifiers.get(SHRINKWRAP_MODIFIER_NAME)
+        active = [
+            self.mesh_obj.modifiers.get(name)
+            for name in SHRINKWRAP_MODIFIER_NAMES
+        ]
 
-        if modifier is not None and modifier.show_viewport:
+        active = [
+            modifier for modifier in active
+            if modifier is not None and modifier.show_viewport
+        ]
+
+        if active:
 
             if not bake_evaluated_positions(
                 self.mesh_obj,
@@ -527,14 +543,16 @@ class OPERATOR_nudge_vertex(bpy.types.Operator):
 
                 return
 
-            self.shrinkwrap = modifier
-            self.shrinkwrap_was_visible = True
+            for modifier in active:
 
-            modifier.show_viewport = False
+                self.shrinkwraps.append((modifier, modifier.show_viewport))
+
+                modifier.show_viewport = False
 
             print(
-                "[Nudge] resultado do Shrinkwrap cravado na malha base; "
-                "modifier desligado durante o ajuste."
+                f"[Nudge] resultado dos modifiers cravado na malha base; "
+                f"{len(active)} Shrinkwrap(s) desligado(s) durante o "
+                f"ajuste."
             )
 
         size = max(target.dimensions)
@@ -556,16 +574,15 @@ class OPERATOR_nudge_vertex(bpy.types.Operator):
         # do usuário e não desfazer seria surpresa desnecessária.
         #
 
-        if self.shrinkwrap is None:
-            return
+        for modifier, was_visible in self.shrinkwraps:
 
-        try:
-            self.shrinkwrap.show_viewport = self.shrinkwrap_was_visible
+            try:
+                modifier.show_viewport = was_visible
 
-        except ReferenceError:
-            pass
+            except ReferenceError:
+                pass
 
-        self.shrinkwrap = None
+        self.shrinkwraps = []
 
     # -----------------------------------------------------------
 
